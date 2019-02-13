@@ -43,7 +43,7 @@ PI_THREAD(deamonLED){
 		while(dTime<=1000){	//Prints nb of screens displayed
 					//	after one second
 			nbScreens +=1;
-			drawScreen(10);
+			drawScreen(8);	//Draw a frame in 8 PWM cycles
 			dTime = millis()-prevTime;
 		}
 		FPS = nbScreens;	//Updates FPS variable
@@ -58,7 +58,6 @@ int main(){
 		return EXIT_FAILURE;
 	}
 
-	
 
 
 	for (unsigned int pin: PINS){	//Enables outputs
@@ -75,12 +74,7 @@ int main(){
 	while (true){
 		std::cout<<FPS<<" fps."<<std::endl;
 		delay(500);
-
-/*		digitalWrite(2, HIGH);
-		delayMicroseconds(1);
-		digitalWrite(2, LOW);
-		delayMicroseconds(1);
-*/	}
+	}
 
 
 	return EXIT_SUCCESS;
@@ -128,12 +122,10 @@ int drawScreen(int const nbCycles) {
 	/* One frame composed of several cycles of PWM */
 
 	std::vector<bool> rawDATAS {};
-	for (unsigned int i(0); i<=(32*32*3)/2; i++) {	//Fill a test vector to display
+	for (unsigned int i(0); i<(32*32*3)/2; i++) {	//Fill a test vector to display
 		rawDATAS.push_back(true);
 		rawDATAS.push_back(false);
 	}
-
-	//int nbCells = SIZE[0]*SIZE[1];
 
 	for (int i(0); i<nbCycles; i++) {
 		sendPacket(rawDATAS);
