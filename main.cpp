@@ -12,7 +12,7 @@
 //Global variables = pure evil !
 std::vector<std::vector<std::vector<int>>> DATAS {};
 int FPS = 0;
-std::vector<int> SIZE {4, 4};
+std::vector<unsigned int> SIZE {4, 4};
 std::vector<int> PINS {0, 2, 3};
 /*PINS:
 	- Datas pin
@@ -246,7 +246,8 @@ int convertValuePWM(int const& value, int const& color){
 		default:
 			return 0;
 			break;
-		return 0;
+	}
+	return 0;
 }
 
 
@@ -278,42 +279,48 @@ void initDATAS(){
 
 
 int calibrate(){
-	unsigned int answer (0);
-	while(answer<1 || answer>4){
+	unsigned int choice (0);
+	while(choice<1 || choice>4){
+		choice=0;
 		std::cout<<"\t*** CALIBRATION MENU ***\n"<<std::endl;
-		std::cout<<"\t\t"<<"0%"<<"\t"<<"25%"<<"\t"<<"50%"<<"\t"<<"75%"<<std::endl;
-		std::cout<<"RED : \t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
-		std::cout<<"GREEN : \t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
-		std::cout<<"BLUE : \t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
+		std::cout<<"\t"<<"0%"<<"\t"<<"25%"<<"\t"<<"50%"<<"\t"<<"75%"<<std::endl;
+		std::cout<<"RED: \t[0]\t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
+		std::cout<<"GREEN: \t[0]\t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
+		std::cout<<"BLUE: \t[0]\t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
 		std::cout<<"1 - Calibrate RED"<<std::endl;
 		std::cout<<"2 - Calibrate GREEN"<<std::endl;
 		std::cout<<"3 - Calibrate BLUE"<<std::endl;
-		std::cout<<"4 - Cancel"<<std::endl;
+		std::cout<<"4 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		std::cin>>answer;	answer = (unsigned int)answer;
+		std::cin>>choice;	choice = (unsigned int)choice;
 
-		switch (answer) {
+		switch (choice) {
 			case 1:
-				std::cout<<"\n*RED : \t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
+				std::cout<<"\n*RED: \t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
 				std::cin>>RED_VALUES[0];
 				std::cin>>RED_VALUES[1];
 				std::cin>>RED_VALUES[2];
+				choice=0;
 				break;
 			case 2:
-				std::cout<<"\n*GREEN : \t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
+				std::cout<<"\n*GREEN: \t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
 				std::cin>>GREEN_VALUES[0];
 				std::cin>>GREEN_VALUES[1];
 				std::cin>>GREEN_VALUES[2];
+				choice=0;
 				break;
 			case 3:
-				std::cout<<"\n*BLUE : \t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
+				std::cout<<"\n*BLUE: t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
 				std::cin>>BLUE_VALUES[0];
 				std::cin>>BLUE_VALUES[1];
 				std::cin>>BLUE_VALUES[2];
+				choice=0;
 				break;
 			case 4:
 				return EXIT_SUCCESS;
 			default:
 				break;
 		}
+	}
+	return EXIT_SUCCESS;
 }
