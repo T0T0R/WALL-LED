@@ -11,7 +11,7 @@
 
 std::vector<std::vector<std::vector<int>>> DATAS {};	//Global variables = pure evil !
 int FPS = 0;
-std::vector<unsigned int> SIZE {8, 8};
+std::vector<unsigned int> SIZE {4, 4};
 std::vector<unsigned int> PINS {0, 2, 3};
 /*PINS:
 	- Datas pin
@@ -27,6 +27,7 @@ int sendPacket(std::vector<bool> const& rawDatas);
 int resetPins();
 int drawScreen();
 std::vector<std::vector<bool>> convertPixelBW(std::vector<int> const& pixel);
+std::vector<std::vector<bool>> convertImageToLED();
 std::vector<bool> convertValuePWM(unsigned int const& value);
 void initDATAS();
 
@@ -69,6 +70,9 @@ int main(){
 	}
 
 	initDATAS();
+	std::cout<<DATAS.size()<<std::endl;
+	std::cout<<DATAS[0].size()<<std::endl;
+	std::cout<<DATAS[0][0].size()<<std::endl;
 
 	int x = piThreadCreate(deamonLED);	//Starts the display
 	if (x!=0){
@@ -179,12 +183,12 @@ std::vector<std::vector<bool>> convertImageToLED(){
 
 
 std::vector<std::vector<bool>> convertPixelBW(std::vector<int> const& pixel){
-	std::vector<bool> Red (convertValuePWM(pixel[0]));
-	std::vector<bool> Green(convertValuePWM(pixel[1]));
-	std::vector<bool> Blue(convertValuePWM(pixel[2]));
+	std::vector<bool> Red = convertValuePWM(pixel[0]);
+	std::vector<bool> Green = convertValuePWM(pixel[1]);
+	std::vector<bool> Blue = convertValuePWM(pixel[2]);
 
 	std::vector<std::vector<bool>> result {Red, Green, Blue};
-	return result;	
+	return result;
 }
 
 
@@ -213,16 +217,16 @@ void initDATAS(){
 	std::vector<std::vector<int>> lineA(SIZE[0]*8);
 	std::vector<std::vector<int>> lineB(SIZE[0]*8);
 
-	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2]) {
+	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2) {
 		lineA.push_back(red);
 		lineA.push_back(green);
 	}
-	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2]) {
+	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2) {
 		lineB.push_back(green);
 		lineB.push_back(blue);
 	}
 
-	for (unsigned int doubleLine (0); doubleLine<SIZE[1]; doubleLine+=2]){
+	for (unsigned int doubleLine (0); doubleLine<SIZE[1]; doubleLine+=2) {
 		DATAS.push_back(lineA);
 		DATAS.push_back(lineB);
 	}
