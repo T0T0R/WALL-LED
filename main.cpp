@@ -17,11 +17,11 @@ std::vector<unsigned int> PINS {0, 2, 3};
 	- Datas pin
 	- shift pin
 	- memory pin
-	- allow output
 */
 
 
 
+/******** PROTOTYPES ********/
 int askUser();
 int sendPacket(std::vector<bool> const& rawDatas);
 int resetPins();
@@ -57,22 +57,22 @@ PI_THREAD(deamonLED){
 
 
 
+
+
 int main(){
 	if (wiringPiSetup()==-1){	//INIT of wiringPi
 		std::cout<<"Thread initialisation failed"<<std::endl;
 		return EXIT_FAILURE;
 	}
 
-
-
 	for (unsigned int pin: PINS){	//Enables outputs
 		pinMode(pin, OUTPUT);
 	}
 
+	piLock(DATAS_KEY);
 	initDATAS();
-	std::cout<<DATAS.size()<<std::endl;
-	std::cout<<DATAS[0].size()<<std::endl;
-	std::cout<<DATAS[0][0].size()<<std::endl;
+	piUnlock(DATAS_KEY);
+
 
 	int x = piThreadCreate(deamonLED);	//Starts the display
 	if (x!=0){
@@ -139,6 +139,7 @@ int drawScreen() {
 
 	return EXIT_SUCCESS;
 }
+
 
 
 std::vector<std::vector<bool>> convertImageToLED(){
@@ -210,6 +211,7 @@ std::vector<bool> convertValuePWM(unsigned int const& value){
 
 
 void initDATAS(){
+	//Set a test pattern as the frame
 	std::vector<int> red {255,0,0};
 	std::vector<int> green{0,255,0};
 	std::vector<int> blue {0,0,255};
