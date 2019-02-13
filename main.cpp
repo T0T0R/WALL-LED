@@ -13,7 +13,13 @@
 int DATAS = 85;	//Global variables = pure evil !
 int FPS = 0;
 std::vector<unsigned int> SIZE {8, 8};
-std::vector<unsigned int> PINS {7, 0, 2, 10};
+std::vector<unsigned int> PINS {7, 0, 2, 10};	
+/*PINS:
+	- Datas pin
+	- shift pin
+	- memory pin
+	- allow output
+*/
 
 
 
@@ -54,6 +60,8 @@ int sendPackets(int const nb) {
 
 
 int drawScreen(int const nbCycles) {
+	/* One frame composed of several cycles of PWM */
+
 	int nbCells = SIZE[0]*SIZE[1];
 	for (int i(0); i<nbCycles; i++) {
 		sendPackets(nbCells*4);
@@ -64,7 +72,7 @@ int drawScreen(int const nbCycles) {
 
 /*
 PI_THREAD(deamonLED){
-	int nbScreens = 0;
+	int nbScreens = 0;	//Used to count fps
 	int dTime = 0;
 	int prevTime = 0;
 
@@ -75,7 +83,7 @@ PI_THREAD(deamonLED){
 		while(dTime<=1000){	//Prints nb of screens displayed
 					//	after one second
 			nbScreens +=1;
-			drawScreen(10,16);
+			drawScreen(10);
 			dTime = millis()-prevTime;
 		}
 		FPS = nbScreens;	//Updates FPS variable
@@ -105,37 +113,5 @@ int main(){
 	}
 */	
 
-
-/*
-	while(1==1){
-		DATAS = (DATAS+1)%256;//askUser();
-		printf("-----------%d\n", DATAS);
-		delay(500);
-	}
-*/
-
-/*
-	while(1==1){
-		std::cout<<FPS<<" fps."<<std::endl;
-		delay(1000);
-	}
-*/
-
-/*
-	while(1==1){
-		//timeB = millis();
-		//sendPackets(64);
-		//drawScreen(10*60, 16);
-		//timeA = millis();
-		//printf("%d ms.\n", timeA-timeB);
-		//delay(100);
-		//testLed(red, green, blue);
-		//digitalWrite(blue, HIGH);
-		//digitalWrite(blue, LOW);
-		//testShift(green, red, 0, 120);
-		//shiftOut(2, 7, MSBFIRST, 120);
-		//digitalWrite(blue, LOW);
-	}
-*/
 	return EXIT_SUCCESS;
 }
