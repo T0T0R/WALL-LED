@@ -214,19 +214,19 @@ void initDATAS(){
 	std::vector<int> green{0,255,0};
 	std::vector<int> blue {0,0,255};
 
-	std::vector<std::vector<int>> lineA(SIZE[0]*8);
-	std::vector<std::vector<int>> lineB(SIZE[0]*8);
+	std::vector<std::vector<int>> lineA {};
+	std::vector<std::vector<int>> lineB {};
 
-	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2) {
+	for (unsigned int pixel (0); pixel<SIZE[0]*8; pixel += 2) {
 		lineA.push_back(red);
 		lineA.push_back(green);
 	}
-	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2) {
+	for (unsigned int pixel (0); pixel<SIZE[0]*8; pixel += 2) {
 		lineB.push_back(green);
 		lineB.push_back(blue);
 	}
 
-	for (unsigned int doubleLine (0); doubleLine<SIZE[1]; doubleLine+=2) {
+	for (unsigned int line (0); line<SIZE[1]*8; line+=2) {
 		DATAS.push_back(lineA);
 		DATAS.push_back(lineB);
 	}
