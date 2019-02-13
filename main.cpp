@@ -22,9 +22,9 @@ std::vector<unsigned int> PINS {7, 0, 2, 10};
 
 
 int askUser();
-int sendPacket(std::vector<bool> const& rawDatas)
-int resetPins()
-int drawScreen(int const nbCycles)
+int sendPacket(std::vector<bool> const& rawDatas);
+int resetPins();
+int drawScreen(int const nbCycles);
 
 
 
@@ -59,6 +59,7 @@ int resetPins(){	//All output pins at LOW level
 	for (unsigned int pin: PINS){
 		digitalWrite(pin, LOW);
 	}
+	return EXIT_SUCCESS
 }
 
 
