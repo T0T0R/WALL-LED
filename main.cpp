@@ -103,8 +103,8 @@ int askUser() {
 
 int sendPacket(std::vector<bool> const& rawDatas) {
 	resetPins();
-	for (bool isOn : rawDatas) {
-		if (isOn) { digitalWrite(PINS[0], HIGH); } else { digitalWrite(PINS[0], LOW); }
+	for (unsigned int i(rawDatas.size()-1); i!=0; i--) {	//LSB First, so datas are sent from the end of the table...
+		if (rawDatas[i]) { digitalWrite(PINS[0], HIGH); } else { digitalWrite(PINS[0], LOW); }
 		digitalWrite(PINS[1], HIGH);	//Register transmission
 
 		digitalWrite(PINS[0], LOW);	//Reset of data pin
