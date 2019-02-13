@@ -9,7 +9,7 @@
 
 #define DATAS_KEY	0
 
-int DATAS = 85;	//Global variables = pure evil !
+std::vector<std::vector<std::vector<int>>> DATAS {};	//Global variables = pure evil !
 int FPS = 0;
 std::vector<unsigned int> SIZE {8, 8};
 std::vector<unsigned int> PINS {0, 2, 3};
@@ -25,7 +25,10 @@ std::vector<unsigned int> PINS {0, 2, 3};
 int askUser();
 int sendPacket(std::vector<bool> const& rawDatas);
 int resetPins();
-int drawScreen(int const nbCycles);
+int drawScreen();
+std::vector<std::vector<bool>> convertPixelBW(std::vector<int> const& pixel);
+std::vector<bool> convertValuePWM(unsigned int const& value);
+void initDATAS();
 
 
 
@@ -44,7 +47,7 @@ PI_THREAD(deamonLED){
 		while(dTime<=1000){	//Prints nb of screens displayed
 					//	after one second
 			nbScreens +=1;
-			drawScreen(8);	//Draw a frame in 8 PWM cycles
+			drawScreen();	//Draw a frame in 8 PWM cycles
 			dTime = millis()-prevTime;
 		}
 		FPS = nbScreens;	//Updates FPS variable
@@ -65,6 +68,7 @@ int main(){
 		pinMode(pin, OUTPUT);
 	}
 
+	initDATAS();
 
 	int x = piThreadCreate(deamonLED);	//Starts the display
 	if (x!=0){
@@ -119,34 +123,107 @@ int resetPins() {	//All output pins at LOW level
 
 
 
-int drawScreen(int const nbCycles) {
+int drawScreen() {
 	/* One frame composed of several cycles of PWM */
 
-	std::vector<bool> rawDATAS {};
-	for (unsigned int i(0); i<(32*32*3)/2; i++) {	//Fill a test vector to display
-		rawDATAS.push_back(true);
-		rawDATAS.push_back(false);
-	}
+	std::vector<std::vector<bool>> rawDATAS (convertImageToLED());
 
-	for (int i(0); i<nbCycles; i++) {
-		sendPacket(rawDATAS);
-	}
+	sendPacket(rawDATAS[0]);
+	sendPacket(rawDATAS[1]);
+	sendPacket(rawDATAS[2]);
+	sendPacket(rawDATAS[3]);
+
 	return EXIT_SUCCESS;
 }
 
 
 std::vector<std::vector<bool>> convertImageToLED(){
-	std::vector<bool> procImL0 [SIZE[0]*SIZE[1]*64*3];	//Processed image, layer 0
-	std::vector<bool> procImL1 [SIZE[0]*SIZE[1]*64*3];
-	std::vector<bool> procImL2 [SIZE[0]*SIZE[1]*64*3];
-	std::vector<bool> procImL3 [SIZE[0]*SIZE[1]*64*3];
+	std::vector<bool> procImL0 (SIZE[0]*SIZE[1]*64*3);	//Processed image, layer 0
+	std::vector<bool> procImL1 (SIZE[0]*SIZE[1]*64*3);
+	std::vector<bool> procImL2 (SIZE[0]*SIZE[1]*64*3);
+	std::vector<bool> procImL3 (SIZE[0]*SIZE[1]*64*3);
 
 	std::vector<std::vector<bool>> tempBWpixel{};
 
 	piLock(DATAS_KEY);
-	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++){
-		for (unsigned int cell(0); cell<SIZE[0]; cell++){
-			for (unsigned int noPixel(0), noPixel<8; noPixel++){
+	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++){	//Line of the picture
+		for (unsigned int cell(0); cell<SIZE[0]; cell++){	//Cell in the line (one cell is composed of 8 pixels)
+			for (unsigned int noPixel(0); noPixel<8; noPixel++){	//Pixel in the cell
+
 				tempBWpixel = convertPixelBW(DATAS[noLine][cell*8 + noPixel]);
+				//in red:
 				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][0];
-				procImL1[noLine*SIZE[0]]
+				procImL1[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][1];
+				procImL2[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][2];
+				procImL3[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][3];
+
+				//in green:
+				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][0];
+				procImL1[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][1];
+				procImL2[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][2];
+				procImL3[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][3];
+
+				//in blue:
+				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][0];
+				procImL1[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][1];
+				procImL2[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][2];
+				procImL3[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][3];
+			}
+		}
+	}
+	piUnlock(DATAS_KEY);
+	std::vector<std::vector<bool>> result {procImL0, procImL1, procImL2, procImL3};
+	return result;
+}
+
+
+
+std::vector<std::vector<bool>> convertPixelBW(std::vector<int> const& pixel){
+	std::vector<bool> Red (convertValuePWM(pixel[0]));
+	std::vector<bool> Green(convertValuePWM(pixel[1]));
+	std::vector<bool> Blue(convertValuePWM(pixel[2]));
+
+	std::vector<std::vector<bool>> result {Red, Green, Blue};
+	return result;	
+}
+
+
+
+std::vector<bool> convertValuePWM(unsigned int const& value){
+	if(value<64){
+		return std::vector<bool> {false, false, false, false};
+	} else if (value<128) {
+		return std::vector<bool> {true, false, false, false};
+	} else if (value<192) {
+		return std::vector<bool> {true, true, false, false};
+	} else if (value<256) {
+		return std::vector<bool> {true, true, true, false};
+	} else {
+		return std::vector<bool> {true, true, true, true};
+	}
+}
+
+
+
+void initDATAS(){
+	std::vector<int> red {255,0,0};
+	std::vector<int> green{0,255,0};
+	std::vector<int> blue {0,0,255};
+
+	std::vector<std::vector<int>> lineA(SIZE[0]*8);
+	std::vector<std::vector<int>> lineB(SIZE[0]*8);
+
+	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2]) {
+		lineA.push_back(red);
+		lineA.push_back(green);
+	}
+	for (unsigned int doublePixel (0); doublePixel<SIZE[0]; doublePixel += 2]) {
+		lineB.push_back(green);
+		lineB.push_back(blue);
+	}
+
+	for (unsigned int doubleLine (0); doubleLine<SIZE[1]; doubleLine+=2]){
+		DATAS.push_back(lineA);
+		DATAS.push_back(lineB);
+	}
+}
