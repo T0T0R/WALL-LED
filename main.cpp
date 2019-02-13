@@ -9,15 +9,19 @@
 
 #define DATAS_KEY	0
 
-std::vector<std::vector<std::vector<int>>> DATAS {};	//Global variables = pure evil !
+//Global variables = pure evil !
+std::vector<std::vector<std::vector<int>>> DATAS {};
 int FPS = 0;
-std::vector<unsigned int> SIZE {4, 4};
-std::vector<unsigned int> PINS {0, 2, 3};
+std::vector<int> SIZE {4, 4};
+std::vector<int> PINS {0, 2, 3};
 /*PINS:
 	- Datas pin
 	- shift pin
 	- memory pin
 */
+std::vector<int> RED_VALUES {64, 128, 192, 255};
+std::vector<int> GREEN_VALUES {64, 128, 192, 255};
+std::vector<int> BLUE_VALUES {64, 128, 192, 255};
 
 
 
@@ -28,8 +32,9 @@ int resetPins();
 int drawScreen();
 std::vector<int> convertPixelBW(std::vector<int> const& pixel);
 std::vector<int> convertImageToLED();
-int convertValuePWM(int const& value);
+int convertValuePWM(int const& value, int const& color);
 void initDATAS();
+int calibrate();
 
 
 
@@ -79,11 +84,13 @@ int main(){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
 
-
+/*
 	while (true){
 		std::cout<<FPS<<" fps."<<std::endl;
 		delay(500);
 	}
+*/
+	calibrate();
 
 
 	return EXIT_SUCCESS;
@@ -98,6 +105,8 @@ int askUser() {
 	std::cin>> number;
 	return number;
 }
+
+
 
 
 
@@ -127,6 +136,8 @@ int sendPacket(std::vector<int> & rawDatas) {
 
 
 
+
+
 int resetPins() {	//All output pins at LOW level
 	for (unsigned int pin : PINS) {
 		digitalWrite(pin, LOW);
@@ -147,6 +158,7 @@ int drawScreen() {
 
 	return EXIT_SUCCESS;
 }
+
 
 
 
@@ -180,9 +192,9 @@ std::vector<int> convertImageToLED(){
 
 std::vector<int> convertPixelBW(std::vector<int> const& pixel){
 /* Basically, converts level from 0-255 to 0-3 */
-	int Red = convertValuePWM(pixel[0]);
-	int Green = convertValuePWM(pixel[1]);
-	int Blue = convertValuePWM(pixel[2]);
+	int Red = convertValuePWM(pixel[0], 0);
+	int Green = convertValuePWM(pixel[1], 1);
+	int Blue = convertValuePWM(pixel[2], 2);
 
 	std::vector<int> result {Red, Green, Blue};
 	return result;
@@ -190,18 +202,51 @@ std::vector<int> convertPixelBW(std::vector<int> const& pixel){
 
 
 
-int convertValuePWM(int const& value){
-	if(value<64){
+int convertValuePWM(int const& value, int const& color){
+	switch (color){
+		case 0:	//RED
+			if (value<RED_VALUES[0]) {
+				return 0;
+			} else if (value<RED_VALUES[1]) {
+				return 1;
+			} else if (value<RED_VALUES[2]) {
+				return 2;
+			} else if (value<RED_VALUES[3]) {
+				return 3;
+			} else {
+				return 4;
+			}
+			break;
+		case 1:	//GREEN
+				if (value<GREEN_VALUES[0]) {
+					return 0;
+				} else if (value<GREEN_VALUES[1]) {
+					return 1;
+				} else if (value<GREEN_VALUES[2]) {
+					return 2;
+				} else if (value<GREEN_VALUES[3]) {
+					return 3;
+				} else {
+					return 4;
+				}
+				break;
+		case 2:	//BLUE
+			if (value<BLUE_VALUES[0]) {
+				return 0;
+			} else if (value<BLUE_VALUES[1]) {
+				return 1;
+			} else if (value<BLUE_VALUES[2]) {
+				return 2;
+			} else if (value<BLUE_VALUES[3]) {
+				return 3;
+			} else {
+				return 4;
+			}
+			break;
+		default:
+			return 0;
+			break;
 		return 0;
-	} else if (value<128) {
-		return 1;
-	} else if (value<192) {
-		return 2;
-	} else if (value<256) {
-		return 3;
-	} else {
-		return 4;
-	}
 }
 
 
@@ -228,4 +273,47 @@ void initDATAS(){
 		DATAS.push_back(lineA);
 		DATAS.push_back(lineB);
 	}
+}
+
+
+
+int calibrate(){
+	unsigned int answer (0);
+	while(answer<1 || answer>4){
+		std::cout<<"\t*** CALIBRATION MENU ***\n"<<std::endl;
+		std::cout<<"\t\t"<<"0%"<<"\t"<<"25%"<<"\t"<<"50%"<<"\t"<<"75%"<<std::endl;
+		std::cout<<"RED : \t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
+		std::cout<<"GREEN : \t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
+		std::cout<<"BLUE : \t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
+		std::cout<<"1 - Calibrate RED"<<std::endl;
+		std::cout<<"2 - Calibrate GREEN"<<std::endl;
+		std::cout<<"3 - Calibrate BLUE"<<std::endl;
+		std::cout<<"4 - Cancel"<<std::endl;
+		std::cout<<"> ";
+		std::cin>>answer;	answer = (unsigned int)answer;
+
+		switch (answer) {
+			case 1:
+				std::cout<<"\n*RED : \t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
+				std::cin>>RED_VALUES[0];
+				std::cin>>RED_VALUES[1];
+				std::cin>>RED_VALUES[2];
+				break;
+			case 2:
+				std::cout<<"\n*GREEN : \t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
+				std::cin>>GREEN_VALUES[0];
+				std::cin>>GREEN_VALUES[1];
+				std::cin>>GREEN_VALUES[2];
+				break;
+			case 3:
+				std::cout<<"\n*BLUE : \t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
+				std::cin>>BLUE_VALUES[0];
+				std::cin>>BLUE_VALUES[1];
+				std::cin>>BLUE_VALUES[2];
+				break;
+			case 4:
+				return EXIT_SUCCESS;
+			default:
+				break;
+		}
 }
