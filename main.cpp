@@ -23,12 +23,12 @@ std::vector<unsigned int> PINS {0, 2, 3};
 
 /******** PROTOTYPES ********/
 int askUser();
-int sendPacket(std::vector<bool> const& rawDatas);
+int sendPacket(std::vector<int> & rawDatas);
 int resetPins();
 int drawScreen();
-std::vector<std::vector<bool>> convertPixelBW(std::vector<int> const& pixel);
-std::vector<std::vector<bool>> convertImageToLED();
-std::vector<bool> convertValuePWM(unsigned int const& value);
+std::vector<int> convertPixelBW(std::vector<int> const& pixel);
+std::vector<int> convertImageToLED();
+int convertValuePWM(int const& value);
 void initDATAS();
 
 
@@ -101,10 +101,19 @@ int askUser() {
 
 
 
-int sendPacket(std::vector<bool> const& rawDatas) {
+int sendPacket(std::vector<int> & rawDatas) {
+/* PWM ratio are stored with values V between 0 and 3.
+	When a value V is not 0, it sets on an output, and this value is decreased.
+	Therefore, after V passes in the loop, the output is turned off, simulating PWM */
+
 	resetPins();
 	for (unsigned int i(rawDatas.size()-1); i!=0; i--) {	//LSB First, so datas are sent from the end of the table...
-		if (rawDatas[i]) { digitalWrite(PINS[0], HIGH); } else { digitalWrite(PINS[0], LOW); }
+		if (rawDatas[i] !=0 ) {
+			digitalWrite(PINS[0], HIGH);
+			rawDatas[i] = rawDatas[i]-1;	//Decrease the value, as explained in description of the function
+		} else {
+			digitalWrite(PINS[0], LOW);
+		}
 		digitalWrite(PINS[1], HIGH);	//Register transmission
 
 		digitalWrite(PINS[0], LOW);	//Reset of data pin
@@ -130,25 +139,21 @@ int resetPins() {	//All output pins at LOW level
 int drawScreen() {
 	/* One frame composed of several cycles of PWM */
 
-	std::vector<std::vector<bool>> rawDATAS (convertImageToLED());
+	std::vector<int> rawDATAS (convertImageToLED());
 
-	sendPacket(rawDATAS[0]);
-	sendPacket(rawDATAS[1]);
-	sendPacket(rawDATAS[2]);
-	sendPacket(rawDATAS[3]);
+	for (unsigned int i(0); i<4; i++){
+		sendPacket(rawDATAS);
+	}
 
 	return EXIT_SUCCESS;
 }
 
 
 
-std::vector<std::vector<bool>> convertImageToLED(){
-	std::vector<bool> procImL0 (SIZE[0]*SIZE[1]*64*3);	//Processed image, layer 0
-	std::vector<bool> procImL1 (SIZE[0]*SIZE[1]*64*3);
-	std::vector<bool> procImL2 (SIZE[0]*SIZE[1]*64*3);
-	std::vector<bool> procImL3 (SIZE[0]*SIZE[1]*64*3);
+std::vector<int> convertImageToLED(){
+	std::vector<int> procImL0 (SIZE[0]*SIZE[1]*64*3);	//Processed image
 
-	std::vector<std::vector<bool>> tempBWpixel{};
+	std::vector<int> tempBWpixel{};
 
 	piLock(DATAS_KEY);
 	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++){	//Line of the picture
@@ -157,54 +162,45 @@ std::vector<std::vector<bool>> convertImageToLED(){
 
 				tempBWpixel = convertPixelBW(DATAS[noLine][cell*8 + noPixel]);
 				//in red:
-				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][0];
-				procImL1[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][1];
-				procImL2[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][2];
-				procImL3[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][3];
+				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0];
 
 				//in green:
-				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][0];
-				procImL1[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][1];
-				procImL2[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][2];
-				procImL3[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1][3];
+				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1];
 
 				//in blue:
-				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][0];
-				procImL1[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][1];
-				procImL2[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][2];
-				procImL3[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2][3];
+				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2];
 			}
 		}
 	}
 	piUnlock(DATAS_KEY);
-	std::vector<std::vector<bool>> result {procImL0, procImL1, procImL2, procImL3};
+	return procImL0;
+}
+
+
+
+std::vector<int> convertPixelBW(std::vector<int> const& pixel){
+/* Basically, converts level from 0-255 to 0-3 */
+	int Red = convertValuePWM(pixel[0]);
+	int Green = convertValuePWM(pixel[1]);
+	int Blue = convertValuePWM(pixel[2]);
+
+	std::vector<int> result {Red, Green, Blue};
 	return result;
 }
 
 
 
-std::vector<std::vector<bool>> convertPixelBW(std::vector<int> const& pixel){
-	std::vector<bool> Red = convertValuePWM(pixel[0]);
-	std::vector<bool> Green = convertValuePWM(pixel[1]);
-	std::vector<bool> Blue = convertValuePWM(pixel[2]);
-
-	std::vector<std::vector<bool>> result {Red, Green, Blue};
-	return result;
-}
-
-
-
-std::vector<bool> convertValuePWM(unsigned int const& value){
+int convertValuePWM(int const& value){
 	if(value<64){
-		return std::vector<bool> {false, false, false, false};
+		return 0;
 	} else if (value<128) {
-		return std::vector<bool> {true, false, false, false};
+		return 1;
 	} else if (value<192) {
-		return std::vector<bool> {true, true, false, false};
+		return 2;
 	} else if (value<256) {
-		return std::vector<bool> {true, true, true, false};
+		return 3;
 	} else {
-		return std::vector<bool> {true, true, true, true};
+		return 4;
 	}
 }
 
