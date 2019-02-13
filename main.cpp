@@ -5,7 +5,6 @@
 #include <iostream>
 #include <vector>
 
-
 #include <wiringPi.h>
 
 
@@ -19,7 +18,6 @@ std::vector<unsigned int> PINS {0, 2, 3};
 	- memory pin
 	- allow output
 */
-std::vector<unsigned int> rawDATAS;
 
 
 
@@ -60,10 +58,7 @@ int main(){
 		return EXIT_FAILURE;
 	}
 
-	for (unsigned int i(0); i<=(32*32*3)/2; i++){	//Fill a test vector to display
-		rawDATAS.push_back(true);
-		rawDATAS.push_back(false);
-	}
+	
 
 
 	for (unsigned int pin: PINS){	//Enables outputs
@@ -132,7 +127,11 @@ int resetPins() {	//All output pins at LOW level
 int drawScreen(int const nbCycles) {
 	/* One frame composed of several cycles of PWM */
 
-	//std::vector<bool> rawDATAS {true, false, false, false, true, true, false, false, false};
+	std::vector<bool> rawDATAS {};
+	for (unsigned int i(0); i<=(32*32*3)/2; i++) {	//Fill a test vector to display
+		rawDATAS.push_back(true);
+		rawDATAS.push_back(false);
+	}
 
 	//int nbCells = SIZE[0]*SIZE[1];
 
