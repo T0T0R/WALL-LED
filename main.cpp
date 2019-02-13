@@ -19,6 +19,8 @@ std::vector<unsigned int> PINS {0, 2, 3};
 	- memory pin
 	- allow output
 */
+std::vector<unsigned int> rawDATAS;
+
 
 
 int askUser();
@@ -28,54 +30,6 @@ int drawScreen(int const nbCycles);
 
 
 
-
-int askUser() {
-	int number;
-	std::cout<<"\nEnter a number: ";
-	std::cin>> number;
-	return number;
-}
-
-
-
-int sendPacket(std::vector<bool> const& rawDatas) {
-	resetPins();
-	for (bool isOn: rawDatas) {
-		if (isOn){	digitalWrite(PINS[0], HIGH);	}else{ digitalWrite(PINS[0], LOW);	}
-		digitalWrite(PINS[1], HIGH);	//Register transmission
-
-		digitalWrite(PINS[0], LOW);	//Reset of data pin
-		digitalWrite(PINS[1], LOW);	//Reset of shift pin
-	}
-
-	digitalWrite(PINS[2], HIGH);	//Outputs transmission
-	digitalWrite(PINS[2], LOW);
-	return EXIT_SUCCESS;
-}
-
-
-
-int resetPins(){	//All output pins at LOW level
-	for (unsigned int pin: PINS){
-		digitalWrite(pin, LOW);
-	}
-	return EXIT_SUCCESS;
-}
-
-
-
-int drawScreen(int const nbCycles) {
-	/* One frame composed of several cycles of PWM */
-
-	std::vector<bool> rawDATAS {true, false, false, false, true, true, false, false, false};
-
-	//int nbCells = SIZE[0]*SIZE[1];
-
-	for (int i(0); i<nbCycles; i++) {
-		sendPacket(rawDATAS);
-	}
-	return EXIT_SUCCESS;
-}
 
 
 
@@ -101,25 +55,32 @@ PI_THREAD(deamonLED){
 
 
 int main(){
-	if (wiringPiSetup()==-1){
+	if (wiringPiSetup()==-1){	//INIT of wiringPi
 		std::cout<<"Thread initialisation failed"<<std::endl;
 		return EXIT_FAILURE;
 	}
 
-	for (unsigned int pin: PINS){
+	for (unsigned int i(0); i<=(32*32*3)/2; i++){	//Fill a test vector to display
+		rawDATAS.push_back(true);
+		rawDATAS.push_back(false);
+	}
+
+
+	for (unsigned int pin: PINS){	//Enables outputs
 		pinMode(pin, OUTPUT);
 	}
 
 
-	int x = piThreadCreate(deamonLED);
+	int x = piThreadCreate(deamonLED);	//Starts the display
 	if (x!=0){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
 
 
 	while (true){
-//		drawScreen(10);
-//		std::cout<<PINS[1]<<std::endl;
+		std::cout<<FPS<<" fps."<<std::endl;
+		delay(500);
+
 /*		digitalWrite(2, HIGH);
 		delayMicroseconds(1);
 		digitalWrite(2, LOW);
@@ -129,3 +90,56 @@ int main(){
 
 	return EXIT_SUCCESS;
 }
+
+
+
+
+int askUser() {
+	int number;
+	std::cout<<"\nEnter a number: ";
+	std::cin>> number;
+	return number;
+}
+
+
+
+int sendPacket(std::vector<bool> const& rawDatas) {
+	resetPins();
+	for (bool isOn : rawDatas) {
+		if (isOn) { digitalWrite(PINS[0], HIGH); } else { digitalWrite(PINS[0], LOW); }
+		digitalWrite(PINS[1], HIGH);	//Register transmission
+
+		digitalWrite(PINS[0], LOW);	//Reset of data pin
+		digitalWrite(PINS[1], LOW);	//Reset of shift pin
+	}
+
+	digitalWrite(PINS[2], HIGH);	//Outputs transmission
+	digitalWrite(PINS[2], LOW);
+	return EXIT_SUCCESS;
+}
+
+
+
+int resetPins() {	//All output pins at LOW level
+	for (unsigned int pin : PINS) {
+		digitalWrite(pin, LOW);
+	}
+	return EXIT_SUCCESS;
+}
+
+
+
+int drawScreen(int const nbCycles) {
+	/* One frame composed of several cycles of PWM */
+
+	//std::vector<bool> rawDATAS {true, false, false, false, true, true, false, false, false};
+
+	//int nbCells = SIZE[0]*SIZE[1];
+
+	for (int i(0); i<nbCycles; i++) {
+		sendPacket(rawDATAS);
+	}
+	return EXIT_SUCCESS;
+}
+
+
