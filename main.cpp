@@ -5,14 +5,14 @@
 #include <iostream>
 #include <vector>
 
-/*
+
 #include <wiringPi.h>
-*/
+
 
 int DATAS = 85;	//Global variables = pure evil !
 int FPS = 0;
 std::vector<unsigned int> SIZE {8, 8};
-std::vector<unsigned int> PINS {7, 0, 2, 10};	
+std::vector<unsigned int> PINS {0, 2, 3};
 /*PINS:
 	- Datas pin
 	- shift pin
@@ -70,7 +70,7 @@ int drawScreen(int const nbCycles) {
 	std::vector<bool> rawDATAS {true, false, false, false, true, true, false, false, false};
 
 	//int nbCells = SIZE[0]*SIZE[1];
-	
+
 	for (int i(0); i<nbCycles; i++) {
 		sendPacket(rawDATAS);
 	}
@@ -78,7 +78,7 @@ int drawScreen(int const nbCycles) {
 }
 
 
-/*
+
 PI_THREAD(deamonLED){
 	int nbScreens = 0;	//Used to count fps
 	int dTime = 0;
@@ -97,14 +97,17 @@ PI_THREAD(deamonLED){
 		FPS = nbScreens;	//Updates FPS variable
 	}
 }
-*/
+
 
 
 int main(){
-/*
 	if (wiringPiSetup()==-1){
 		std::cout<<"Thread initialisation failed"<<std::endl;
 		return EXIT_FAILURE;
+	}
+
+	for (unsigned int pin: PINS){
+		pinMode(pin, OUTPUT);
 	}
 
 
@@ -112,7 +115,17 @@ int main(){
 	if (x!=0){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
-*/
+
+
+	while (true){
+//		drawScreen(10);
+//		std::cout<<PINS[1]<<std::endl;
+/*		digitalWrite(2, HIGH);
+		delayMicroseconds(1);
+		digitalWrite(2, LOW);
+		delayMicroseconds(1);
+*/	}
+
 
 	return EXIT_SUCCESS;
 }
