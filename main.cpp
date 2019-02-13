@@ -59,7 +59,7 @@ int resetPins(){	//All output pins at LOW level
 	for (unsigned int pin: PINS){
 		digitalWrite(pin, LOW);
 	}
-	return EXIT_SUCCESS
+	return EXIT_SUCCESS;
 }
 
 
