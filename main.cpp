@@ -5,9 +5,62 @@
 #include <iostream>
 #include <vector>
 
+/*
+#include <wiringPi.h>
+#include <wiringShift.h>
+*/
 
 int DATAS = 85;	//Global variables = pure evil !
 int FPS = 0;
+std::vector<unsigned int> SIZE {8, 8};
+std::vector<unsigned int> PINS {7, 0, 2, 10};
+
+
+
+int testLed(int const red, int const blue, int const green) {
+	/*
+	digitalWrite(red, HIGH);
+	digitalWrite(green, HIGH);
+	digitalWrite(blue, HIGH);
+	delayMicroseconds(1);
+	digitalWrite(red, LOW);
+	digitalWrite(green, LOW);
+	digitalWrite(blue, LOW);
+	delayMicroseconds(100);
+	*/
+	return EXIT_SUCCESS;
+}
+
+
+
+int askUser() {
+	int number;
+	std::cout<<"\nEnter a number: ";
+	std::cin>> number;
+	return number;
+}
+
+
+
+int sendPackets(int const nb) {
+	/*
+	for (int i(0); i<nb; i++) {
+		shiftOut(2, 7, MSBFIRST, DATAS);
+	}
+	*/
+	return EXIT_SUCCESS;
+}
+
+
+
+int drawScreen(int const nbCycles) {
+	int nbCells = SIZE[0]*SIZE[1];
+	for (int i(0); i<nbCycles; i++) {
+		sendPackets(nbCells*4);
+	}
+	return EXIT_SUCCESS;
+}
+
 
 /*
 PI_THREAD(deamonLED){
@@ -30,6 +83,7 @@ PI_THREAD(deamonLED){
 }
 */
 
+
 int main(){
 /*
 	if (wiringPiSetup()==-1){
@@ -45,11 +99,11 @@ int main(){
 	int blue = (0);
 	int green = (2);
 
-	int x = piThreadCreate(testShift);
+	int x = piThreadCreate(deamonLED);
 	if (x!=0){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
-*/
+*/	
 
 
 /*
