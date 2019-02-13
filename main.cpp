@@ -7,7 +7,6 @@
 
 /*
 #include <wiringPi.h>
-#include <wiringShift.h>
 */
 
 int DATAS = 85;	//Global variables = pure evil !
@@ -23,21 +22,6 @@ std::vector<unsigned int> PINS {7, 0, 2, 10};
 
 
 
-int testLed(int const red, int const blue, int const green) {
-	/*
-	digitalWrite(red, HIGH);
-	digitalWrite(green, HIGH);
-	digitalWrite(blue, HIGH);
-	delayMicroseconds(1);
-	digitalWrite(red, LOW);
-	digitalWrite(green, LOW);
-	digitalWrite(blue, LOW);
-	delayMicroseconds(100);
-	*/
-	return EXIT_SUCCESS;
-}
-
-
 
 int askUser() {
 	int number;
@@ -48,13 +32,27 @@ int askUser() {
 
 
 
-int sendPackets(int const nb) {
-	/*
-	for (int i(0); i<nb; i++) {
-		shiftOut(2, 7, MSBFIRST, DATAS);
+int sendPacket(std::vector<bool> const& rawDatas) {
+	resetPins();
+	for (bool isOn: rawDatas) {
+		if (isOn){	digitalWrite(PINS[0], HIGH);	}else{ digitalWrite(PINS[0], LOW);	}
+		digitalWrite(PINS[1], HIGH);	//Register transmission
+
+		digitalWrite(PINS[0], LOW);	//Reset of data pin
+		digitalWrite(PINS[1], LOW);	//Reset of shift pin
 	}
-	*/
+
+	digitalWrite(PINS[2], HIGH);	//Outputs transmission
+	digitalWrite(PINS[2], LOW);
 	return EXIT_SUCCESS;
+}
+
+
+
+int resetPins(){	//All output pins at LOW level
+	for (unsigned int pin: PINS){
+		digitalWrite(pin, LOW);
+	}
 }
 
 
@@ -62,9 +60,11 @@ int sendPackets(int const nb) {
 int drawScreen(int const nbCycles) {
 	/* One frame composed of several cycles of PWM */
 
+	std::vector<bool> rawDATAS {true, false, false, false, true, true, false, false, false};
+
 	int nbCells = SIZE[0]*SIZE[1];
 	for (int i(0); i<nbCycles; i++) {
-		sendPackets(nbCells*4);
+		sendPacket(rawDATAS);
 	}
 	return EXIT_SUCCESS;
 }
@@ -99,13 +99,6 @@ int main(){
 		return EXIT_FAILURE;
 	}
 
-	int Width (0);
-	int Height (0);
-	int Bpp = (0);
-
-	int red = (7);
-	int blue = (0);
-	int green = (2);
 
 	int x = piThreadCreate(deamonLED);
 	if (x!=0){
