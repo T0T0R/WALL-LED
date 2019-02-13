@@ -7,6 +7,7 @@
 
 #include <wiringPi.h>
 
+#define DATAS_KEY	0
 
 int DATAS = 85;	//Global variables = pure evil !
 int FPS = 0;
@@ -134,3 +135,18 @@ int drawScreen(int const nbCycles) {
 }
 
 
+std::vector<std::vector<bool>> convertImageToLED(){
+	std::vector<bool> procImL0 [SIZE[0]*SIZE[1]*64*3];	//Processed image, layer 0
+	std::vector<bool> procImL1 [SIZE[0]*SIZE[1]*64*3];
+	std::vector<bool> procImL2 [SIZE[0]*SIZE[1]*64*3];
+	std::vector<bool> procImL3 [SIZE[0]*SIZE[1]*64*3];
+
+	std::vector<std::vector<bool>> tempBWpixel{};
+
+	piLock(DATAS_KEY);
+	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++){
+		for (unsigned int cell(0); cell<SIZE[0]; cell++){
+			for (unsigned int noPixel(0), noPixel<8; noPixel++){
+				tempBWpixel = convertPixelBW(DATAS[noLine][cell*8 + noPixel]);
+				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0][0];
+				procImL1[noLine*SIZE[0]]
