@@ -21,6 +21,12 @@ std::vector<unsigned int> PINS {7, 0, 2, 10};
 */
 
 
+int askUser();
+int sendPacket(std::vector<bool> const& rawDatas)
+int resetPins()
+int drawScreen(int const nbCycles)
+
+
 
 
 int askUser() {
@@ -62,7 +68,8 @@ int drawScreen(int const nbCycles) {
 
 	std::vector<bool> rawDATAS {true, false, false, false, true, true, false, false, false};
 
-	int nbCells = SIZE[0]*SIZE[1];
+	//int nbCells = SIZE[0]*SIZE[1];
+	
 	for (int i(0); i<nbCycles; i++) {
 		sendPacket(rawDATAS);
 	}
@@ -104,7 +111,7 @@ int main(){
 	if (x!=0){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
-*/	
+*/
 
 	return EXIT_SUCCESS;
 }
