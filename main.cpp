@@ -64,6 +64,7 @@ PI_THREAD(deamonLED){
 
 
 
+
 int main(){
 	if (wiringPiSetup()==-1){	//INIT of wiringPi
 		std::cout<<"Thread initialisation failed"<<std::endl;
@@ -99,14 +100,6 @@ int main(){
 
 
 
-int askUser() {
-	int number;
-	std::cout<<"\nEnter a number: ";
-	std::cin>> number;
-	return number;
-}
-
-
 
 
 
@@ -136,8 +129,6 @@ int sendPacket(std::vector<int> & rawDatas) {
 
 
 
-
-
 int resetPins() {	//All output pins at LOW level
 	for (unsigned int pin : PINS) {
 		digitalWrite(pin, LOW);
@@ -158,7 +149,6 @@ int drawScreen() {
 
 	return EXIT_SUCCESS;
 }
-
 
 
 
@@ -283,7 +273,7 @@ int calibrate(){
 	while(choice<1 || choice>4){
 		choice=0;
 		std::cout<<"\t*** CALIBRATION MENU ***\n"<<std::endl;
-		std::cout<<"\t"<<"0%"<<"\t"<<"25%"<<"\t"<<"50%"<<"\t"<<"75%"<<std::endl;
+		std::cout<<"PWM duty\t"<<"0%"<<"\t"<<"25%"<<"\t"<<"50%"<<"\t"<<"75%"<<std::endl;
 		std::cout<<"RED: \t[0]\t["<<RED_VALUES[0]<<"]\t["<<RED_VALUES[1]<<"]\t["<<RED_VALUES[2]<<"]"<<std::endl;
 		std::cout<<"GREEN: \t[0]\t["<<GREEN_VALUES[0]<<"]\t["<<GREEN_VALUES[1]<<"]\t["<<GREEN_VALUES[2]<<"]"<<std::endl;
 		std::cout<<"BLUE: \t[0]\t["<<BLUE_VALUES[0]<<"]\t["<<BLUE_VALUES[1]<<"]\t["<<BLUE_VALUES[2]<<"]\n"<<std::endl;
