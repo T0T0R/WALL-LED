@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 
+#include <ncurses.h>
 #include <wiringPi.h>
 
 #define DATAS_KEY	0
