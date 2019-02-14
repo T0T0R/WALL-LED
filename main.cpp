@@ -34,7 +34,10 @@ std::vector<int> convertPixelBW(std::vector<int> const& pixel);
 std::vector<int> convertImageToLED();
 int convertValuePWM(int const& value, int const& color);
 void initDATAS();
-int calibrate();
+int M_displayPatterns();
+int M_spectrum();
+int M_pong();
+int M_calibrate();
 
 
 
@@ -91,9 +94,43 @@ int main(){
 		delay(500);
 	}
 */
-	calibrate();
 
 
+	unsigned int choice (0);
+	while (choice<1 || choice>4) {
+		choice = 0;
+		std::cout<<"\t===== WALL-LED ***\n"<<std::endl;
+		std::cout<<"1 - Display patterns"<<std::endl;
+		std::cout<<"2 - Spectrum"<<std::endl;
+		std::cout<<"3 - Pong"<<std::endl;
+		std::cout<<"4 - Color Calibration"<<std::endl;
+		std::cout<<"5 - EXIT"<<std::endl;
+		std::cout<<"> ";
+		std::cin>>choice;	choice = (unsigned int)choice;
+
+		switch (choice) {
+			case 1:
+				M_displayPatterns();
+				choice = 0;
+				break;
+			case 2:
+				M_spectrum();
+				choice = 0;
+				break;
+			case 3:
+				M_pong();
+				choice = 0;
+				break;
+			case 4:
+				M_calibrate();
+				choice = 0;
+				break;
+			case 5:
+				return EXIT_SUCCESS;
+			default:
+				break;
+		}
+	}
 	return EXIT_SUCCESS;
 }
 
@@ -268,7 +305,25 @@ void initDATAS(){
 
 
 
-int calibrate(){
+int M_displayPatterns() {
+	return EXIT_SUCCESS;
+}
+
+
+
+int M_spectrum() {
+	return EXIT_SUCCESS;
+}
+
+
+
+int M_pong() {
+	return EXIT_SUCCESS;
+}
+
+
+
+int M_calibrate(){
 	unsigned int choice (0);
 	while(choice<1 || choice>4){
 		choice=0;
