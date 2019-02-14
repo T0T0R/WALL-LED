@@ -38,6 +38,8 @@ void initDATAS();
 int M_displayPatterns();
 int M_spectrum();
 int M_pong();
+int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
+int pongMovePlayer(int const& player, int const& direction);
 int M_calibrate();
 
 
@@ -100,7 +102,7 @@ int main(){
 	unsigned int choice (0);
 	while (choice<1 || choice>4) {
 		choice = 0;
-		std::cout<<"\t===== WALL-LED ***\n"<<std::endl;
+		std::cout<<"\t===== WALL-LED =====\n"<<std::endl;
 		std::cout<<"1 - Display patterns"<<std::endl;
 		std::cout<<"2 - Spectrum"<<std::endl;
 		std::cout<<"3 - Pong"<<std::endl;
@@ -319,6 +321,67 @@ int M_spectrum() {
 
 
 int M_pong() {
+	std::vector<int> WHITE {255,255,255};
+	play_pong(WHITE, WHITE);
+	return EXIT_SUCCESS;
+}
+
+int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
+	initscr();
+	clear();
+	noecho();
+	keypad(stdscr, TRUE);
+	cbreak();
+	printw("*** Pong game ***\n");
+	printw("- Left player:\t[e]:up\t\t- Right player:\t[UP]:up\n");
+	printw("\t\t[c]:down\t\t \t[DOWN]:down\n");
+	printw("- Other:\t[q]:exit");
+	refresh();
+	bool gameRunning (true);
+	int c (0);
+	int cTemp (0);
+	while (gameRunning){
+		c = getch();
+
+		switch (c){
+			case 113:	// key q pressed : quit
+				gameRunning = false;
+				break;
+			case 101:		// key e pressed: left player, up
+				pongMovePlayer(0,1);
+				printw("LP : up\n");
+				refresh();
+				break;
+			case 99:		// key c pressed: left player, down
+				pongMovePlayer(0,0);
+				printw("LP : down\n");
+				refresh();
+				break;
+			case KEY_UP:		// key UP pressed: right player, up
+				pongMovePlayer(1,1);
+				printw("RP : up\n");
+				refresh();
+				break;
+			case KEY_DOWN:		// key DOWN pressed: right player, down
+				pongMovePlayer(1,0);
+				printw("RP : down\n");
+				refresh();
+				break;
+			default:
+				break;
+			
+		}
+		
+	}
+	endwin();
+
+
+	return EXIT_SUCCESS;
+}
+
+
+
+int pongMovePlayer(int const& player, int const& direction){
 	return EXIT_SUCCESS;
 }
 
