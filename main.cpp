@@ -38,8 +38,8 @@ void initDATAS();
 int M_displayPatterns();
 int M_spectrum();
 int M_pong();
-int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
-int pongMovePlayer(int const& player, int const& direction);
+int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
+int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
 int M_calibrate();
 
 
@@ -322,11 +322,12 @@ int M_spectrum() {
 
 int M_pong() {
 	std::vector<int> WHITE {255,255,255};
-	play_pong(WHITE, WHITE);
+	play_pong(1, WHITE, WHITE);
 	return EXIT_SUCCESS;
 }
 
-int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
+int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
+	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 	initscr();
 	clear();
 	noecho();
@@ -339,7 +340,19 @@ int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor)
 	refresh();
 	bool gameRunning (true);
 	int c (0);
-	int cTemp (0);
+
+	std::vector<int> playerPos (2);
+	std::vector<int> ballPos (2);
+
+	std::vector<int> score {0,0};
+	if (screenMode==0){	//4*4 cells
+		playerPos[0]=13;	playerPos[1]=13;
+		ballPos[0]=15;	 ballPos[0]=15;
+	}else{	//4*2 cells
+		playerPos[0]=6;	playerPos[1]=6;
+		ballPos[0]=15;	 ballPos[0]=8;
+	}
+
 	while (gameRunning){
 		c = getch();
 
@@ -348,23 +361,19 @@ int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor)
 				gameRunning = false;
 				break;
 			case 101:		// key e pressed: left player, up
-				pongMovePlayer(0,1);
-				printw("LP : up\n");
+				pongMovePlayer(0,1,playerPos, screenMode);
 				refresh();
 				break;
 			case 99:		// key c pressed: left player, down
-				pongMovePlayer(0,0);
-				printw("LP : down\n");
+				pongMovePlayer(0,-1,playerPos, screenMode);
 				refresh();
 				break;
 			case KEY_UP:		// key UP pressed: right player, up
-				pongMovePlayer(1,1);
-				printw("RP : up\n");
+				pongMovePlayer(1,1,playerPos, screenMode);
 				refresh();
 				break;
 			case KEY_DOWN:		// key DOWN pressed: right player, down
-				pongMovePlayer(1,0);
-				printw("RP : down\n");
+				pongMovePlayer(1,-1,playerPos, screenMode);
 				refresh();
 				break;
 			default:
@@ -374,14 +383,48 @@ int play_pong(std::vector<int> const& fgColor, std::vector<int> const& HUDcolor)
 		
 	}
 	endwin();
-
-
 	return EXIT_SUCCESS;
 }
 
 
 
-int pongMovePlayer(int const& player, int const& direction){
+int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode){
+	if(player==0){	//Left player
+		if (direction==1){	//up
+			if(playerPos[0]<=3){	playerPos[0]=3;
+			}else{	playerPos[0] = playerPos[0]-1;
+			}
+		}else{	//down
+			if (mode==0){	//4*4 cells
+				if(playerPos[0]>=23){	playerPos[0]=23;
+				}else{	playerPos[0] = playerPos[0]+1;
+				}
+			}else{	//4*2 cells
+				if(playerPos[0]>=9){	playerPos[0]=9;
+				}else{	playerPos[0] = playerPos[0]+1;
+				}
+			}
+		}
+
+	}else{	//Right player
+		if (direction==1){
+			if(playerPos[1]<=3){	playerPos[1]=3;
+			}else{	playerPos[1] = playerPos[1]-1;
+			}
+
+		}else{
+			if (mode==0){	//4*4 cells
+				if(playerPos[1]>=23){	playerPos[1]=23;
+				}else{	playerPos[1] = playerPos[1]+1;
+				}
+			}else{	//4*2 cells
+				if(playerPos[1]>=9){	playerPos[1]=9;
+				}else{	playerPos[1] = playerPos[1]+1;
+				}
+			}
+		}
+	}
+	printw("LP : %d\tRP : %d\n", playerPos[0], playerPos[1]);
 	return EXIT_SUCCESS;
 }
 
