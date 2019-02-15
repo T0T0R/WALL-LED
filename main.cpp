@@ -33,7 +33,8 @@ int sendPacket(std::vector<int> & rawDatas);
 int resetPins();
 int drawScreen();
 std::vector<int> convertPixelBW(std::vector<int> const& pixel);
-std::vector<int> convertImageToLED();
+//std::vector<int> convertImageToLED();
+std::vector<std::vector<int>> convertImageToLED()
 int convertValuePWM(int const& value, int const& color);
 void initDATAS();
 int M_displayPatterns();
@@ -254,7 +255,8 @@ int resetPins() {	//All output pins at LOW level
 int drawScreen() {
 	/* One frame composed of several cycles of PWM */
 
-	std::vector<int> rawDATAS (convertImageToLED());
+	//std::vector<int> rawDATAS (convertImageToLED());
+	std::vector<std::vector<int>> rawDATAS (convertImageToLED());
 	//std::vector<int> rawDATAS (test);
 
 	for (unsigned int i(0); i<4; i++){
@@ -265,16 +267,16 @@ int drawScreen() {
 }
 
 
-
-std::vector<int> convertImageToLED(){
+/*
+std::vector<int> convertImageToLED() {
 	std::vector<int> procImL0 (SIZE[0]*SIZE[1]*64*3);	//Processed image
 
-	std::vector<int> tempBWpixel{};
+	std::vector<int> tempBWpixel {};
 
 	piLock(DATAS_KEY);
-	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++){	//Line of the picture
-		for (unsigned int cell(0); cell<SIZE[0]; cell++){	//Cell in the line (one cell is composed of 8 pixels)
-			for (unsigned int noPixel(0); noPixel<8; noPixel++){	//Pixel in the cell
+	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++) {	//Line of the picture
+		for (unsigned int cell(0); cell<SIZE[0]; cell++) {	//Cell in the line (one cell is composed of 8 pixels)
+			for (unsigned int noPixel(0); noPixel<8; noPixel++) {	//Pixel in the cell
 
 				tempBWpixel = convertPixelBW(DATAS[noLine][cell*8 + noPixel]);
 				//in red:
@@ -291,6 +293,88 @@ std::vector<int> convertImageToLED(){
 	piUnlock(DATAS_KEY);
 	return procImL0;
 }
+*/
+
+
+
+std::vector<std::vector<int>> convertImageToLED() {	
+	/* Eache lineSet is build by getting the values for the pixels in this very line set (SIZE[0]*SIZE[1]*8*3 bits)
+		and also the byte read by the shift register (row byte) that chooses the row/line to display (+8 bits)
+		*/
+
+	int rowByteSize (8);	//Not so hard-coded to not forget to leave space at the beginning of
+					//a lineset to store there the data for the shift register that drives the rows.
+
+	std::vector<std::vector<int>> procImage (8);	//Processed image, composed of 8 line sets
+	std::vector<int> procLineSet (SIZE[0]*SIZE[1]*8*3 + 8);	//Processed line set of an image
+
+	std::vector<int> tempBWpixel {};
+
+	piLock(DATAS_KEY);
+
+	for (unsigned int lineSet(0); lineSet<8; lineSet++){	//Line set of the picture
+
+		switch(lineSet){	//Row byte
+			case 0:
+				procLineSet[0] = 9; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;	//We put 9, because it can't be erased that easily when changing PWM cycle
+				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
+				break;
+			case 1:
+				procLineSet[0] = 0; procLineSet[1] = 9; procLineSet[2] = 0; procLineSet[3] = 0;
+				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
+				break;
+			case 2:
+				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 9; procLineSet[3] = 0;
+				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
+				break;
+			case 3:
+				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 9;
+				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
+				break;
+			case 4:
+				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
+				procLineSet[4] = 9; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
+				break;
+			case 5:
+				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
+				procLineSet[4] = 0; procLineSet[5] = 9; procLineSet[6] = 0; procLineSet[7] = 0;
+				break;
+			case 6:
+				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
+				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 9; procLineSet[7] = 0;
+				break;
+			case 7:
+				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
+				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 9;
+				break;
+			default:
+				break;
+		}
+
+		for (unsigned int cellLine(0); cellLine<SIZE[1]; cellLine++){	//Yeah, we got the line set, but which line of the image in this line set ? cellLine*8 + lineSet !
+			for (unsigned int cell(0); cell<SIZE[0]; cell++) {	//Cell in the cellLine (one cell is composed of 8 pixels)
+				for (unsigned int noPixel(0); noPixel<8; noPixel++) {	//Pixel in the cell
+
+					tempBWpixel = convertPixelBW(DATAS[cellLine*8 + lineSet][cell*8 + noPixel]);
+					//in red:
+					procLineSet[rowByteSize + cellLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0];
+
+					//in green:
+					procLineSet[rowByteSize + cellLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1];
+
+					//in blue:
+					procLineSet[rowByteSize + cellLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2];
+				}
+			}
+		}
+
+		procImage.push_back(procLineSet);	//Add the lineSet to the image
+		procLineSet.clear();	//Empty the temporary lineset, so it can be used again
+	}
+	piUnlock(DATAS_KEY);
+	return procImL0;
+}
+
 
 
 
