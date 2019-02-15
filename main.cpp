@@ -21,6 +21,7 @@ std::vector<int> PINS {0, 2, 3};
 	- shift pin
 	- memory pin
 */
+
 std::vector<int> RED_VALUES {64, 128, 192, 255};
 std::vector<int> GREEN_VALUES {64, 128, 192, 255};
 std::vector<int> BLUE_VALUES {64, 128, 192, 255};
@@ -34,7 +35,7 @@ int resetPins();
 int drawScreen();
 std::vector<int> convertPixelBW(std::vector<int> const& pixel);
 //std::vector<int> convertImageToLED();
-std::vector<std::vector<int>> convertImageToLED()
+std::vector<std::vector<int>> convertImageToLED();
 int convertValuePWM(int const& value, int const& color);
 void initDATAS();
 int M_displayPatterns();
@@ -258,9 +259,10 @@ int drawScreen() {
 	//std::vector<int> rawDATAS (convertImageToLED());
 	std::vector<std::vector<int>> rawDATAS (convertImageToLED());
 	//std::vector<int> rawDATAS (test);
-
-	for (unsigned int i(0); i<4; i++){
-		sendPacket(rawDATAS);
+	for (auto lineSet: rawDATAS){
+		for (unsigned int i(0); i<4; i++){
+			sendPacket(lineSet);
+		}
 	}
 
 	return EXIT_SUCCESS;
@@ -298,7 +300,7 @@ std::vector<int> convertImageToLED() {
 
 
 std::vector<std::vector<int>> convertImageToLED() {	
-	/* Eache lineSet is build by getting the values for the pixels in this very line set (SIZE[0]*SIZE[1]*8*3 bits)
+	/* Each lineSet is build by getting the values for the pixels in this very line set (SIZE[0]*SIZE[1]*8*3 bits)
 		and also the byte read by the shift register (row byte) that chooses the row/line to display (+8 bits)
 		*/
 
@@ -372,7 +374,7 @@ std::vector<std::vector<int>> convertImageToLED() {
 		procLineSet.clear();	//Empty the temporary lineset, so it can be used again
 	}
 	piUnlock(DATAS_KEY);
-	return procImL0;
+	return procImage;
 }
 
 
