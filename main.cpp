@@ -7,6 +7,7 @@
 
 #include <ncurses.h>
 #include <wiringPi.h>
+#include <wiringShift.h>
 
 #define DATAS_KEY	0
 
@@ -42,9 +43,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
 int M_calibrate();
 
-
-
-
+std::vector<int> test(16);
 
 
 PI_THREAD(deamonLED){
@@ -53,13 +52,31 @@ PI_THREAD(deamonLED){
 	int prevTime = 0;
 
 	while(1==1){
+		/*
+		test[0]=3;
+		test[1]=0;
+		test[2]=3;
+		test[3]=0;
+		test[4]=3;
+		test[5]=0;
+		test[6]=3;
+		test[7]=0;
+		test[8]=2;
+		test[9]=2;
+		test[10]=2;
+		test[11]=2;
+		test[12]=0;
+		test[13]=0;
+		test[14]=0;
+		test[15]=0;
+		*/
 		dTime = 0;	//Reset of deltaTime
 		nbScreens = 0;
 		prevTime = millis();
 		while(dTime<=1000){	//Prints nb of screens displayed
 					//	after one second
 			nbScreens +=1;
-			drawScreen();	//Draw a frame in 8 PWM cycles
+			drawScreen();	//Draw a frame in several PWM cycles
 			dTime = millis()-prevTime;
 		}
 		FPS = nbScreens;	//Updates FPS variable
@@ -91,14 +108,16 @@ int main(){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
 
-/*
+//	for(;;){}	//Infinite loop
+
+
 	while (true){
 		std::cout<<FPS<<" fps."<<std::endl;
-		delay(500);
+		delay(1000);
 	}
-*/
 
 
+/*
 	unsigned int choice (0);
 	while (choice<1 || choice>4) {
 		choice = 0;
@@ -134,6 +153,7 @@ int main(){
 				break;
 		}
 	}
+*/
 	return EXIT_SUCCESS;
 }
 
@@ -149,20 +169,73 @@ int sendPacket(std::vector<int> & rawDatas) {
 	Therefore, after V passes in the loop, the output is turned off, simulating PWM */
 
 	resetPins();
-	for (unsigned int i(rawDatas.size()-1); i!=0; i--) {	//LSB First, so datas are sent from the end of the table...
-		if (rawDatas[i] !=0 ) {
-			digitalWrite(PINS[0], HIGH);
-			rawDatas[i] = rawDatas[i]-1;	//Decrease the value, as explained in description of the function
-		} else {
-			digitalWrite(PINS[0], LOW);
-		}
-		digitalWrite(PINS[1], HIGH);	//Register transmission
+	unsigned int size = rawDatas.size();
+	int i8bitPacket (0);
+	int bitPos (0);
 
-		digitalWrite(PINS[0], LOW);	//Reset of data pin
-		digitalWrite(PINS[1], LOW);	//Reset of shift pin
+	for (unsigned int i(0); i<size; i++) {	//LSB First, so datas are sent from the end of the table...
+
+		bitPos = i%8;	//Build the packet:
+		switch (bitPos){
+		case 0:
+			if(rawDatas[size-i-1]!=0){	//1st bit = 2^0 = 1
+				i8bitPacket ++;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;	//Decrease the value, as explained in description of the function
+			}
+			break;
+		case 1:
+			if(rawDatas[size-i-1]!=0){	//2nd bit = 2^1 = 2
+				i8bitPacket = i8bitPacket+2;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			break;
+		case 2:
+			if(rawDatas[size-i-1]!=0){	//3nd bit = 2^2 = 4
+				i8bitPacket = i8bitPacket+4;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			break;
+		case 3:
+			if(rawDatas[size-i-1]!=0){	//3rd bit = 2^3 = 8
+				i8bitPacket = i8bitPacket+8;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			break;
+		case 4:
+			if(rawDatas[size-i-1]!=0){	//4th bit = 2^4 = 16
+				i8bitPacket = i8bitPacket+16;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			break;
+		case 5:
+			if(rawDatas[size-i-1]!=0){	//5th bit = 2^5 = 32
+				i8bitPacket = i8bitPacket+32;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			break;
+		case 6:
+			if(rawDatas[size-i-1]!=0){	//6th bit = 2^6 = 64
+				i8bitPacket = i8bitPacket+64;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			break;
+		case 7:
+			if(rawDatas[size-i-1]!=0){	//7th bit = 2^7 = 128
+				i8bitPacket = i8bitPacket+128;
+				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
+			}
+			//Correct size for a packet ; can be sent
+			shiftOut(PINS[0], PINS[1], LSBFIRST, i8bitPacket);
+			i8bitPacket = 0;	//Reset the packet after being sent
+			break;
+		default:
+			break;
+		}
+
 	}
 
 	digitalWrite(PINS[2], HIGH);	//Outputs transmission
+//	delayMicroseconds(1);
 	digitalWrite(PINS[2], LOW);
 	return EXIT_SUCCESS;
 }
@@ -182,6 +255,7 @@ int drawScreen() {
 	/* One frame composed of several cycles of PWM */
 
 	std::vector<int> rawDATAS (convertImageToLED());
+	//std::vector<int> rawDATAS (test);
 
 	for (unsigned int i(0); i<4; i++){
 		sendPacket(rawDATAS);
