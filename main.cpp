@@ -408,18 +408,18 @@ int convertValuePWM(int const& value, int const& color){
 			}
 			break;
 		case 1:	//GREEN
-				if (value<GREEN_VALUES[0]) {
-					return 0;
-				} else if (value<GREEN_VALUES[1]) {
-					return 1;
-				} else if (value<GREEN_VALUES[2]) {
-					return 2;
-				} else if (value<GREEN_VALUES[3]) {
-					return 3;
-				} else {
-					return 4;
-				}
-				break;
+			if (value<GREEN_VALUES[0]) {
+				return 0;
+			} else if (value<GREEN_VALUES[1]) {
+				return 1;
+			} else if (value<GREEN_VALUES[2]) {
+				return 2;
+			} else if (value<GREEN_VALUES[3]) {
+				return 3;
+			} else {
+				return 4;
+			}
+			break;
 		case 2:	//BLUE
 			if (value<BLUE_VALUES[0]) {
 				return 0;
