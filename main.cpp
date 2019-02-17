@@ -10,10 +10,11 @@
 #include <wiringShift.h>
 
 #define DATAS_KEY	0
+#define FPS		60
 
 //Global variables = pure evil !
 std::vector<std::vector<std::vector<int>>> DATAS {};
-int FPS = 0;
+int fps = 0;
 std::vector<unsigned int> SIZE {4, 4};
 std::vector<int> PINS {0, 2, 3};
 /*PINS:
@@ -49,39 +50,37 @@ std::vector<int> test(16);
 
 
 PI_THREAD(deamonLED){
-	int nbScreens = 0;	//Used to count fps
-	int dTime = 0;
-	int prevTime = 0;
+	int nbScreens (0);	//Used to count fps
+	int dTimeSec (0);
+	int prevTimeSec (0);
 
-	while(1==1){
-		/*
-		test[0]=3;
-		test[1]=0;
-		test[2]=3;
-		test[3]=0;
-		test[4]=3;
-		test[5]=0;
-		test[6]=3;
-		test[7]=0;
-		test[8]=2;
-		test[9]=2;
-		test[10]=2;
-		test[11]=2;
-		test[12]=0;
-		test[13]=0;
-		test[14]=0;
-		test[15]=0;
-		*/
-		dTime = 0;	//Reset of deltaTime
+	int dTimeFrame (0);	//Used to force fps
+	int prevTimeFrame (0);
+
+	while(true){
+
+		dTimeSec = 0;	//Reset of deltaTime
 		nbScreens = 0;
-		prevTime = millis();
-		while(dTime<=1000){	//Prints nb of screens displayed
-					//	after one second
+		prevTimeSec = millis();
+
+		dTimeFrame = 0;
+		prevTimeFrame = millis();
+
+		while(dTimeSec<=1000){
+			while(dTimeFrame<=(int)(1000/FPS)){
+				delay((int)(100/FPS));
+				dTimeFrame = millis() - prevTimeFrame;	//update duration of the frame
+			}
+
 			nbScreens +=1;
 			drawScreen();	//Draw a frame in several PWM cycles
-			dTime = millis()-prevTime;
+
+			dTimeFrame = 0;	//reset duration of the frame
+			prevTimeFrame = millis();
+			dTimeSec = millis() - prevTimeSec;	//update duration of a second
 		}
-		FPS = nbScreens;	//Updates FPS variable
+
+		fps = nbScreens;	//Updates FPS variable
 	}
 }
 
@@ -114,7 +113,7 @@ int main(){
 
 
 	while (true){
-		std::cout<<FPS<<" fps."<<std::endl;
+		std::cout<<fps<<" fps."<<std::endl;
 		delay(1000);
 	}
 
