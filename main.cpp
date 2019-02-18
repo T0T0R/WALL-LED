@@ -73,7 +73,7 @@ PI_THREAD(deamonLED){
 		prevTimeFrame = millis();
 
 		while(dTimeSec<=1000){
-			while(dTimeFrame<=(int)(1000/FPS)){
+			while(dTimeFrame<=(int)(1000/FPS)){	//Force non-constant update of the screen by introducing delay
 				delay((int)(100/FPS));
 				dTimeFrame = millis() - prevTimeFrame;	//update duration of the frame
 			}
@@ -162,6 +162,8 @@ int main(){
 				break;
 		}
 	}
+
+	resetPins();
 	return EXIT_SUCCESS;
 }
 
@@ -243,7 +245,6 @@ int sendPacket(std::vector<int> & rawDatas) {
 	}
 
 	digitalWrite(PINS[2], HIGH);	//Outputs transmission
-//	delayMicroseconds(1);
 	digitalWrite(PINS[2], LOW);
 	return EXIT_SUCCESS;
 }
@@ -260,9 +261,8 @@ int resetPins() {	//All output pins at LOW level
 
 
 int drawScreen() {
-	/* One frame composed of several cycles of PWM */
+	/* One frame composed of several (4) cycles of PWM */
 
-	//std::vector<int> rawDATAS (convertImageToLED());
 	std::vector<std::vector<int>> rawDATAS (convertImageToLED());
 	//std::vector<int> rawDATAS (test);
 	for (auto lineSet: rawDATAS){
@@ -358,7 +358,7 @@ std::vector<std::vector<int>> convertImageToLED() {
 
 
 std::vector<int> convertPixelBW(std::vector<int> const& pixel){
-/* Basically, converts level from 0-255 to 0-3 */
+/* Converts hue from 3*(0-255) to 3*(0-3) */
 	int Red = convertValuePWM(pixel[0], 0);
 	int Green = convertValuePWM(pixel[1], 1);
 	int Blue = convertValuePWM(pixel[2], 2);
@@ -370,6 +370,11 @@ std::vector<int> convertPixelBW(std::vector<int> const& pixel){
 
 
 int convertValuePWM(int const& value, int const& color){
+	/* Basically, converts values from 0-255 to 0-3.
+		Conversion can be non-linear if confugured by user in
+		the "Calibration" menu.
+		Linear by default.
+	*/
 	switch (color){
 		case 0:	//RED
 			if (value<RED_VALUES[0]) {
@@ -446,18 +451,23 @@ void initDATAS(){
 
 
 int M_displayPatterns() {
+	/* NOT DONE YET */
 	return EXIT_SUCCESS;
 }
 
 
 
 int M_spectrum() {
+	/* NOT DONE YET */
 	return EXIT_SUCCESS;
 }
 
 
 
 int M_pong() {
+	/* NOT DONE YET
+		Have to make a menu to select HUD and main colors, and also the dimensions of the display
+	*/
 	std::vector<int> WHITE {255,255,255};
 	play_pong(1, WHITE, WHITE);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 	return EXIT_SUCCESS;
@@ -465,12 +475,15 @@ int M_pong() {
 
 int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
 	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
+
 	initscr();
 	clear();
 	noecho();
 	keypad(stdscr, TRUE);
 	nodelay(stdscr, TRUE);
 	cbreak();
+
+
 	printw("*** Pong game ***\n");
 	printw("- Left player:\t[e]:up\t\t- Right player:\t[UP]:up\n");
 	printw("\t\t[c]:down\t\t \t[DOWN]:down\n");
@@ -497,17 +510,23 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 	}
 	pongInitBall(ballPosAngle, screenMode);
 
+
 	int dTime(0);	//Used to regulate the framerate (FPS constant)
 	int prevTime = millis();
 
 	while (gameRunning){
 
+		/*Regulate frame rate*/
 		while(dTime <= (int)(1000/FPS)){
 			delay((int)(100/FPS));
 			dTime = millis()-prevTime;
 		}
 
+
 		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);
+
+
+		/*Inputs from players*/
 		c = getch();	
 		switch (c){
 			case 113:	// key q pressed : quit
@@ -535,7 +554,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 
 		dTime = 0;
 		prevTime = millis();
-		
+
 	}
 	endwin();
 	return EXIT_SUCCESS;
@@ -588,8 +607,8 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode){
 	std::random_device rd{};
 
-	ballPosAngle[0] = 15+(rd()%2);
-	switch (screenMode){
+	ballPosAngle[0] = 15+(rd()%2);	//X-Axis
+	switch (screenMode){			//Y-Axis
 		case 0:	//4*4 cells
 			ballPosAngle[0] = 15+(rd()%2);
 			break;
@@ -603,10 +622,11 @@ int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode){
 
 	//Angle in degrees, easier to generate than in rad:
 	int angle = rd()%360;
-	while (angle==90||angle==270){
+	while (angle==90||angle==270){	//We do not want a vertical ball, so please find an angle != vertical
 		angle = rd()%360;
 	}
 	ballPosAngle[2] = angle;
+
 	return EXIT_SUCCESS;
 }
 
