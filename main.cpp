@@ -13,10 +13,12 @@
 
 #define DATAS_KEY	0
 #define FPS		60
+#define PI 3.14159265
 
 //Global variables = pure evil !
+bool deamonDisplay (true);
 std::vector<std::vector<std::vector<int>>> DATAS {};
-int fps = 0;
+int fps (0);
 std::vector<unsigned int> SIZE {4, 4};
 std::vector<int> PINS {0, 2, 3};
 /*PINS:
@@ -45,8 +47,8 @@ int M_spectrum();
 int M_pong();
 int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
 int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
-int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode);
-int pongMoveBall(std::vector<int> & ballPos, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
+int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode);
+int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
 int M_calibrate();
 
 std::vector<int> test(16);
@@ -63,7 +65,7 @@ PI_THREAD(deamonLED){
 	int dTimeFrame (0);	//Used to force fps
 	int prevTimeFrame (0);
 
-	while(true){
+	while(deamonDisplay){
 
 		dTimeSec = 0;	//Reset of deltaTime
 		nbScreens = 0;
@@ -90,6 +92,7 @@ PI_THREAD(deamonLED){
 		myFile << fps<<" fps."<< std::endl;
 	}
 	myFile.close();
+	return EXIT_SUCCESS;
 }
 
 
@@ -164,6 +167,7 @@ int main(){
 	}
 
 	resetPins();
+	deamonDisplay = false;
 	return EXIT_SUCCESS;
 }
 
@@ -276,7 +280,7 @@ int drawScreen() {
 
 
 
-std::vector<std::vector<int>> convertImageToLED() {	
+std::vector<std::vector<int>> convertImageToLED() {
 	/* Each lineSet is build by getting the values for the pixels in this very line set (SIZE[0]*SIZE[1]*8*3 bits)
 		and also the byte read by the shift register (row byte) that chooses the row/line to display (+8 bits)
 		*/
@@ -495,7 +499,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 
 	/* Initializing positions */
 	std::vector<int> playerPos (2);
-	std::vector<int> ballPosAngle (3);	//Contains the pos(x;y) and the angle with the X-Axis
+	std::vector<double> ballPosAngle (3);	//Contains the pos(x;y) and the angle with the X-Axis
 	std::vector<int> score {0,0};
 	switch (screenMode){
 		case 0:	//4*4 cells
@@ -523,11 +527,11 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 		}
 
 
-		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);
+		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
 
 
 		/*Inputs from players*/
-		c = getch();	
+		c = getch();
 		switch (c){
 			case 113:	// key q pressed : quit
 				gameRunning = false;
@@ -604,7 +608,7 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 
 
 
-int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode){
+int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 	std::random_device rd{};
 
 	ballPosAngle[0] = 15+(rd()%2);	//X-Axis
@@ -625,15 +629,20 @@ int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode){
 	while (angle==90||angle==270){	//We do not want a vertical ball, so please find an angle != vertical
 		angle = rd()%360;
 	}
-	ballPosAngle[2] = angle;
+	ballPosAngle[2] = angle*(PI/180.0);	//Now, angle in rad!
 
 	return EXIT_SUCCESS;
 }
 
 
 
-int pongMoveBall(std::vector<int> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime){
-	//std::cout<< dTime <<" ms."<<std::endl;
+int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime){
+	double SPEED (7.0);	//Arbitrary fixed speed value of 7 pixels per second. Because I can.
+
+	std::vector<float> futurePos (2);
+
+	futurePos[0] = SPEED*(double)(dTime)/1000 * cos(ballPosAngle[2]);
+	futurePos[1] = SPEED*(double)(dTime)/1000 * sin(ballPosAngle[2]);
 	return EXIT_SUCCESS;
 }
 
