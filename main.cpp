@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <random>
 
 #include <ncurses.h>
 #include <wiringPi.h>
@@ -44,6 +45,8 @@ int M_spectrum();
 int M_pong();
 int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
 int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
+int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode);
+int pongMoveBall(std::vector<int> & ballPos, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
 int M_calibrate();
 
 std::vector<int> test(16);
@@ -466,6 +469,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 	clear();
 	noecho();
 	keypad(stdscr, TRUE);
+	nodelay(stdscr, TRUE);
 	cbreak();
 	printw("*** Pong game ***\n");
 	printw("- Left player:\t[e]:up\t\t- Right player:\t[UP]:up\n");
@@ -475,21 +479,36 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 	bool gameRunning (true);
 	int c (0);
 
-	std::vector<int> playerPos (2);
-	std::vector<int> ballPos (2);
 
+	/* Initializing positions */
+	std::vector<int> playerPos (2);
+	std::vector<int> ballPosAngle (3);	//Contains the pos(x;y) and the angle with the X-Axis
 	std::vector<int> score {0,0};
-	if (screenMode==0){	//4*4 cells
-		playerPos[0]=13;	playerPos[1]=13;
-		ballPos[0]=15;	 ballPos[0]=15;
-	}else{	//4*2 cells
-		playerPos[0]=6;	playerPos[1]=6;
-		ballPos[0]=15;	 ballPos[0]=8;
+	switch (screenMode){
+		case 0:	//4*4 cells
+			playerPos[0]=13;	playerPos[1]=13;
+			break;
+		case 1:	//4*2 cells
+			playerPos[0]=6;	playerPos[1]=6;
+			break;
+		default:
+			std::cout<<"Could not initialize players : screeMode = "<<screenMode<<std::endl;
+			break;
 	}
+	pongInitBall(ballPosAngle, screenMode);
+
+	int dTime(0);	//Used to regulate the framerate (FPS constant)
+	int prevTime = millis();
 
 	while (gameRunning){
-		c = getch();
 
+		while(dTime <= (int)(1000/FPS)){
+			delay((int)(100/FPS));
+			dTime = millis()-prevTime;
+		}
+
+		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);
+		c = getch();	
 		switch (c){
 			case 113:	// key q pressed : quit
 				gameRunning = false;
@@ -513,6 +532,9 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 			default:
 				break;
 		}
+
+		dTime = 0;
+		prevTime = millis();
 		
 	}
 	endwin();
@@ -561,6 +583,39 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 	return EXIT_SUCCESS;
 }
 
+
+
+int pongInitBall(std::vector<int> & ballPosAngle, int const& screenMode){
+	std::random_device rd{};
+
+	ballPosAngle[0] = 15+(rd()%2);
+	switch (screenMode){
+		case 0:	//4*4 cells
+			ballPosAngle[0] = 15+(rd()%2);
+			break;
+		case 1:	//4*2 cells
+			ballPosAngle[0] = 7+(rd()%2);
+			break;
+		default:
+			std::cout<<"Could not initialize ball : screeMode = "<<screenMode<<std::endl;
+			break;
+	}
+
+	//Angle in degrees, easier to generate than in rad:
+	int angle = rd()%360;
+	while (angle==90||angle==270){
+		angle = rd()%360;
+	}
+	ballPosAngle[2] = angle;
+	return EXIT_SUCCESS;
+}
+
+
+
+int pongMoveBall(std::vector<int> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime){
+	//std::cout<< dTime <<" ms."<<std::endl;
+	return EXIT_SUCCESS;
+}
 
 
 int M_calibrate(){
