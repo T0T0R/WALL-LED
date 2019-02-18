@@ -456,7 +456,7 @@ int M_spectrum() {
 
 int M_pong() {
 	std::vector<int> WHITE {255,255,255};
-	play_pong(1, WHITE, WHITE);
+	play_pong(1, WHITE, WHITE);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 	return EXIT_SUCCESS;
 }
 
@@ -470,7 +470,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 	printw("*** Pong game ***\n");
 	printw("- Left player:\t[e]:up\t\t- Right player:\t[UP]:up\n");
 	printw("\t\t[c]:down\t\t \t[DOWN]:down\n");
-	printw("- Other:\t[q]:exit");
+	printw("- Other:\t[q]:exit\n");
 	refresh();
 	bool gameRunning (true);
 	int c (0);
@@ -512,7 +512,6 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 				break;
 			default:
 				break;
-			
 		}
 		
 	}
@@ -528,12 +527,12 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 			if(playerPos[0]<=3){	playerPos[0]=3;
 			}else{	playerPos[0] = playerPos[0]-1;
 			}
-		}else{	//down
+		}else{				//down
 			if (mode==0){	//4*4 cells
 				if(playerPos[0]>=23){	playerPos[0]=23;
 				}else{	playerPos[0] = playerPos[0]+1;
 				}
-			}else{	//4*2 cells
+			}else{			//4*2 cells
 				if(playerPos[0]>=9){	playerPos[0]=9;
 				}else{	playerPos[0] = playerPos[0]+1;
 				}
@@ -551,14 +550,14 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 				if(playerPos[1]>=23){	playerPos[1]=23;
 				}else{	playerPos[1] = playerPos[1]+1;
 				}
-			}else{	//4*2 cells
+			}else{			//4*2 cells
 				if(playerPos[1]>=9){	playerPos[1]=9;
 				}else{	playerPos[1] = playerPos[1]+1;
 				}
 			}
 		}
 	}
-	printw("LP : %d\tRP : %d\n", playerPos[0], playerPos[1]);
+	printw("LP : %d\tRP : %d\n", playerPos[0], playerPos[1]);	//Debug message displaying coordinates of the players
 	return EXIT_SUCCESS;
 }
 
