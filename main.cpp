@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <vector>
 
 #include <ncurses.h>
@@ -35,7 +36,6 @@ int sendPacket(std::vector<int> & rawDatas);
 int resetPins();
 int drawScreen();
 std::vector<int> convertPixelBW(std::vector<int> const& pixel);
-//std::vector<int> convertImageToLED();
 std::vector<std::vector<int>> convertImageToLED();
 int convertValuePWM(int const& value, int const& color);
 void initDATAS();
@@ -50,6 +50,9 @@ std::vector<int> test(16);
 
 
 PI_THREAD(deamonLED){
+	std::ofstream myFile;
+	myFile.open ("fps.txt");
+
 	int nbScreens (0);	//Used to count fps
 	int dTimeSec (0);
 	int prevTimeSec (0);
@@ -81,7 +84,9 @@ PI_THREAD(deamonLED){
 		}
 
 		fps = nbScreens;	//Updates FPS variable
+		myFile << fps<<" fps."<< std::endl;
 	}
+	myFile.close();
 }
 
 
@@ -111,14 +116,14 @@ int main(){
 
 //	for(;;){}	//Infinite loop
 
-
+/*
 	while (true){
 		std::cout<<fps<<" fps."<<std::endl;
 		delay(1000);
 	}
+*/
 
 
-/*
 	unsigned int choice (0);
 	while (choice<1 || choice>4) {
 		choice = 0;
@@ -154,7 +159,6 @@ int main(){
 				break;
 		}
 	}
-*/
 	return EXIT_SUCCESS;
 }
 
@@ -266,35 +270,6 @@ int drawScreen() {
 
 	return EXIT_SUCCESS;
 }
-
-
-/*
-std::vector<int> convertImageToLED() {
-	std::vector<int> procImL0 (SIZE[0]*SIZE[1]*64*3);	//Processed image
-
-	std::vector<int> tempBWpixel {};
-
-	piLock(DATAS_KEY);
-	for (unsigned int noLine(0); noLine<SIZE[1]; noLine++) {	//Line of the picture
-		for (unsigned int cell(0); cell<SIZE[0]; cell++) {	//Cell in the line (one cell is composed of 8 pixels)
-			for (unsigned int noPixel(0); noPixel<8; noPixel++) {	//Pixel in the cell
-
-				tempBWpixel = convertPixelBW(DATAS[noLine][cell*8 + noPixel]);
-				//in red:
-				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel] = tempBWpixel[0];
-
-				//in green:
-				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1];
-
-				//in blue:
-				procImL0[noLine*SIZE[0]*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2];
-			}
-		}
-	}
-	piUnlock(DATAS_KEY);
-	return procImL0;
-}
-*/
 
 
 
