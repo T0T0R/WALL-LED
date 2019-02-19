@@ -168,6 +168,7 @@ int main(){
 
 	resetPins();
 	deamonDisplay = false;
+	delay(100);
 	return EXIT_SUCCESS;
 }
 
@@ -480,6 +481,9 @@ int M_pong() {
 int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
 	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 
+	std::ofstream myFile;
+	myFile.open ("ball.txt");
+
 	initscr();
 	clear();
 	noecho();
@@ -513,6 +517,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 			break;
 	}
 	pongInitBall(ballPosAngle, screenMode);
+	std::cout<<ballPosAngle[0]<<";"<<ballPosAngle[1]<<";"<<ballPosAngle[2]*180/PI<<"."<<std::endl;
 
 
 	int dTime(0);	//Used to regulate the framerate (FPS constant)
@@ -526,9 +531,8 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 			dTime = millis()-prevTime;
 		}
 
-
 		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
-
+		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
 
 		/*Inputs from players*/
 		c = getch();
@@ -612,12 +616,13 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 	std::random_device rd{};
 
 	ballPosAngle[0] = 15+(rd()%2);	//X-Axis
+
 	switch (screenMode){			//Y-Axis
 		case 0:	//4*4 cells
-			ballPosAngle[0] = 15+(rd()%2);
+			ballPosAngle[1] = 15+(rd()%2);
 			break;
 		case 1:	//4*2 cells
-			ballPosAngle[0] = 7+(rd()%2);
+			ballPosAngle[1] = 7+(rd()%2);
 			break;
 		default:
 			std::cout<<"Could not initialize ball : screeMode = "<<screenMode<<std::endl;
@@ -631,20 +636,132 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 	}
 	ballPosAngle[2] = angle*(PI/180.0);	//Now, angle in rad!
 
+/*
+	ballPosAngle[0] = 16;
+	ballPosAngle[1] = 15;
+	ballPosAngle[2] = 256*PI/180;
+*/	
 	return EXIT_SUCCESS;
 }
 
 
 
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime){
-	double SPEED (7.0);	//Arbitrary fixed speed value of 7 pixels per second. Because I can.
+	double SPEED (50.0);	//Arbitrary fixed speed value of 20 pixels per second. Because I can.
 
-	std::vector<float> futurePos (2);
+	double futureX = SPEED*((double)(dTime)/1000) * cos(ballPosAngle[2]) + ballPosAngle[0];
+	double futureY = SPEED*((double)(dTime)/1000) * sin(ballPosAngle[2]) + ballPosAngle[1];
 
-	futurePos[0] = SPEED*(double)(dTime)/1000 * cos(ballPosAngle[2]);
-	futurePos[1] = SPEED*(double)(dTime)/1000 * sin(ballPosAngle[2]);
+	//Future positions ON THE SCREEN, so interger values !
+	int futurePosX = (int) floor(futureX);
+	int futurePosY = (int) floor(futureY);
+
+	//std::cout<<futureX<<";"<<futureY<<std::endl;
+
+	/* Collision on the Y-Axis */
+	if (futurePosY<=0){
+						//Bounce on the upper limit : y+1
+		ballPosAngle[1] = ballPosAngle[1];	//Reflect
+		ballPosAngle[2] = -1.0* ballPosAngle[2];
+
+	}else if(futurePosY >= 15){	//>=15 or >= 31
+
+		switch(screenMode){	//Bounce on the lower limit : y-1
+			case 0:	//4*4 cells
+				if (futurePosY >= 31){
+					ballPosAngle[1] = ballPosAngle[1];	//Reflect
+					ballPosAngle[2] = -1.0* ballPosAngle[2];
+				}else{ballPosAngle[1]	= futureY;}
+				break;
+			case 1:	//4*2 cells
+				if (futurePosY >= 15){
+					ballPosAngle[1] = ballPosAngle[1];	//Reflect
+					ballPosAngle[2] = -1.0* ballPosAngle[2];
+				}else{ballPosAngle[1]	= futureY;}
+				break;
+		}
+	}else{//Not on borders: cannot bounce:
+		ballPosAngle[1]	= futureY;
+	}
+
+
+	bool hitPaddle(false);
+	/* Collision on the X-Axis */
+	if (futurePosX <= 1 && ballPosAngle[0]>2){		//Left paddle
+
+		switch(screenMode){
+			case 0:	//4*4 cells, paddles are 6px wide:
+				for (int y(0); y<6; y++){
+					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
+						ballPosAngle[0] = 2+(futureX-futurePosX);	//Reflect position
+						ballPosAngle[2] = PI - ballPosAngle[2];
+						std::cout<<"bounce left"<<std::endl;
+						hitPaddle = true;
+						break;
+					}
+				}
+				break;
+			case 1:	//4*2 cells, paddles are 4px wide:
+				for (int y(0); y<4; y++){
+					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
+						ballPosAngle[0] = 2+(futureX-futurePosX);	//Reflect position
+						ballPosAngle[2] = PI - ballPosAngle[2];
+						std::cout<<"bounce left"<<std::endl;
+						hitPaddle = true;
+						break;
+					}
+				}
+				break;
+			default:
+				break;
+		}
+
+		if (!hitPaddle){
+			ballPosAngle[0]	= futureX;
+		}
+
+
+
+	}else if (futurePosX >= 30 && ballPosAngle[0]<30){		//Right paddle
+
+		switch(screenMode){
+			case 0:	//4*4 cells, paddles are 6px wide:
+				for (int y(0); y<6; y++){
+					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
+						ballPosAngle[0] = 30-(futureX-futurePosX);
+						ballPosAngle[2] = PI - ballPosAngle[2];
+						std::cout<<"bounce right"<<std::endl;
+						hitPaddle = true;
+						break;
+					}
+				}
+				break;
+			case 1:	//4*2 cells, paddles are 4px wide:
+				for (int y(0); y<4; y++){
+					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
+						ballPosAngle[0] = 30-(futureX-futurePosX);
+						ballPosAngle[2] = PI - ballPosAngle[2];
+						std::cout<<"bounce right"<<std::endl;
+						hitPaddle = true;
+						break;
+					}
+				}
+				break;
+			default:
+				break;
+		}
+		if (!hitPaddle){
+			ballPosAngle[0]	= futureX;
+		}
+
+	}else{	//Not in the zone of paddles : can not bounce
+		ballPosAngle[0]	= futureX;
+	}
+
+
 	return EXIT_SUCCESS;
 }
+
 
 
 int M_calibrate(){
