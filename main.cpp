@@ -478,6 +478,8 @@ int M_pong() {
 	return EXIT_SUCCESS;
 }
 
+
+
 int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
 	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 
@@ -631,7 +633,8 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 
 	//Angle in degrees, easier to generate than in rad:
 	int angle = rd()%360;
-	while (angle==90||angle==270){	//We do not want a vertical ball, so please find an angle != vertical
+	while (angle==90||angle==180||angle==270){	//We do not want a vertical ball nor horizontal,
+									//	so please find an angle != vertical && != horizontal
 		angle = rd()%360;
 	}
 	ballPosAngle[2] = angle*(PI/180.0);	//Now, angle in rad!
