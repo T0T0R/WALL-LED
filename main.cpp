@@ -471,12 +471,7 @@
 
 
 	int M_pong() {
-		/* NOT DONE YET
-			Have to make a menu to select HUD and main colors, and also the dimensions of the display
-		*/
-
 		std::cout<<"\n*** Pong game ***"<<std::endl;
-
 
 		unsigned int choiceDisp (0);
 		int screenMode (0);
