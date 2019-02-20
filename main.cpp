@@ -20,7 +20,7 @@ bool deamonDisplay (true);
 std::vector<std::vector<std::vector<int>>> DATAS {};
 int fps (0);
 unsigned int SIZE_X (4);
-unsigned int SIZE_Y (2);
+unsigned int SIZE_Y (4);
 std::vector<int> PINS {0, 2, 3};
 /*PINS:
 	- Datas pin
@@ -52,6 +52,7 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode);
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
 int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
 				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
+int calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score);
 int drawScore(std::vector<int> const& score, std::vector<int> const& HUDcolor);
 int M_settings();
 
@@ -494,7 +495,7 @@ int M_pong() {
 		std::cout<<"3 - EXIT"<<std::endl;
 		std::cout<<"> ";
 		//std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
-		choiceDisp = 1;
+		choiceDisp = 2;
 
 		switch (choiceDisp) {
 			case 1:
@@ -623,6 +624,8 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 		/*Move the ball*/
 		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
 		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
+
+		calcScore(ballPosAngle, score);
 
 		pongDisplay(ballPosAngle, playerPos, score, screenMode, fgColor, HUDcolor);
 
@@ -835,20 +838,7 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 
 int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
 				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
-	/* NOT DONE YET */
 	std::vector<int> BLACK {0,0,0};
-
-
-
-
-//	Il faut faire un systeme de comptage de points:
-//	-	boucle qui relance une manche
-//	-	passer le score en paramètre à cette fontion
-
-
-
-
-
 
 	piLock(DATAS_KEY);
 
@@ -883,9 +873,11 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 				DATAS[0][i] = fgColor;
 				DATAS[15][i] = fgColor;
 			}
+
 			for (int i (0); i<score[0]; i++){	DATAS[0][14-i] = HUDcolor;	}	//Draw scores on the top border
 			for (int i (0); i<score[1]; i++){	DATAS[0][17+i] = HUDcolor;	}
 			DATAS[0][4] = HUDcolor;	DATAS[0][27] = HUDcolor;	//Draw pixel indicating the limit score
+
 			for (unsigned int i (0); i<15; i+=2){	//Draw net
 				DATAS[i][16] = fgColor;
 				DATAS[i+1][15] = fgColor;
@@ -900,6 +892,15 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 			break;
 	}
 	piUnlock(DATAS_KEY);
+	return EXIT_SUCCESS;
+}
+
+
+
+int calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score){
+	if (ballPosAngle[0]<1 && score[1]<10){	score[1]=score[1]+1;	}
+	if (ballPosAngle[0]>30 && score[0]<10){	score[0]=score[0]+1;	}
+
 	return EXIT_SUCCESS;
 }
 
