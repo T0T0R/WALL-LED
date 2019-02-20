@@ -52,7 +52,7 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode);
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
 int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
 				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
-int calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score);
+bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score);
 int drawScore(std::vector<int> const& score, std::vector<int> const& HUDcolor);
 int M_settings();
 
@@ -148,8 +148,8 @@ int main(){
 		std::cout<<"4 - Settings"<<std::endl;
 		std::cout<<"5 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		//std::cin>>choice;	choice = (unsigned int)choice;
-		choice = 3;
+		std::cin>>choice;	choice = (unsigned int)choice;
+
 
 		switch (choice) {
 			case 1:
@@ -372,7 +372,6 @@ std::vector<std::vector<int>> convertImageToLED() {
 
 
 
-
 std::vector<int> convertPixelBW(std::vector<int> const& pixel){
 /* Converts hue from 3*(0-255) to 3*(0-3) */
 	int Red = convertValuePWM(pixel[0], 0);
@@ -494,9 +493,8 @@ int M_pong() {
 
 		std::cout<<"3 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		//std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
-		choiceDisp = 2;
-
+		std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
+		
 		switch (choiceDisp) {
 			case 1:
 				screenMode = 1;
@@ -517,7 +515,6 @@ int M_pong() {
 		}
 	}
 
-/*
 	std::cout<<" * Choose foreground color\n"<<std::endl;
 	std::cout<<"RED : 0-255 > ";
 	int redValue  (255);	std::cin>>redValue;
@@ -535,9 +532,8 @@ int M_pong() {
 	std::cout<<"BLUE : 0-255 > ";
 	std::cin>>blueValue;
 	std::vector<int> HUDcolor {redValue, greenValue, blueValue};
-*/
-	std::vector<int> WHITE {255,255,255};
-	play_pong(screenMode, WHITE, WHITE);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
+
+	play_pong(screenMode, fgColor, HUDcolor);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 	return EXIT_SUCCESS;
 }
 
@@ -625,7 +621,14 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
 		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
 
-		calcScore(ballPosAngle, score);
+		if(calcScore(ballPosAngle, score)){	//If a new point has been made...
+			delay(500);
+			pongInitBall(ballPosAngle, screenMode);	//New ball
+
+			if (score[0]==10||score[1]==10){	//If someone won, stop the game
+				gameRunning = false;
+			}
+		}
 
 		pongDisplay(ballPosAngle, playerPos, score, screenMode, fgColor, HUDcolor);
 
@@ -707,9 +710,6 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 	}
 	ballPosAngle[2] = angle*(PI/180.0);	//Now, angle in rad!
 
-	ballPosAngle[0] = 16;
-	ballPosAngle[1] = 8;
-	ballPosAngle[2] = 61*PI/360;
 
 	return EXIT_SUCCESS;
 }
@@ -897,11 +897,19 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 
 
 
-int calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score){
-	if (ballPosAngle[0]<1 && score[1]<10){	score[1]=score[1]+1;	}
-	if (ballPosAngle[0]>30 && score[0]<10){	score[0]=score[0]+1;	}
+bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score){
+/*Returns true if a new point has been made*/
+	bool newPoint = false;
+	if (ballPosAngle[0]<1 && score[1]<10){
+		score[1]=score[1]+1;
+		newPoint = true;
+	}
+	if (ballPosAngle[0]>30 && score[0]<10){
+		score[0]=score[0]+1;
+		newPoint = true;
+	}
 
-	return EXIT_SUCCESS;
+	return newPoint;
 }
 
 
