@@ -533,9 +533,6 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 			dTime = millis()-prevTime;
 		}
 
-		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
-		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
-
 		/*Inputs from players*/
 		c = getch();
 		switch (c){
@@ -561,6 +558,10 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 			default:
 				break;
 		}
+
+		/*Move the ball*/
+		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
+		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
 
 		dTime = 0;
 		prevTime = millis();
@@ -634,16 +635,11 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 	//Angle in degrees, easier to generate than in rad:
 	int angle = rd()%360;
 	while (angle==90||angle==180||angle==270){	//We do not want a vertical ball nor horizontal,
-									//	so please find an angle != vertical && != horizontal
+												//	so please find an angle != vertical && != horizontal
 		angle = rd()%360;
 	}
 	ballPosAngle[2] = angle*(PI/180.0);	//Now, angle in rad!
 
-/*
-	ballPosAngle[0] = 16;
-	ballPosAngle[1] = 15;
-	ballPosAngle[2] = 256*PI/180;
-*/	
 	return EXIT_SUCCESS;
 }
 
