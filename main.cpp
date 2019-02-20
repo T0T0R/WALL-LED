@@ -50,8 +50,9 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
 int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode);
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
-int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos,
-				int const& screenMode, std::vector<int> fgColor, std::vector<int> HUDcolor);
+int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
+				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
+int drawScore(std::vector<int> const& score, std::vector<int> const& HUDcolor);
 int M_settings();
 
 std::vector<int> test(16);
@@ -128,6 +129,9 @@ int main(){
 /*
 	while (true){
 		std::cout<<fps<<" fps."<<std::endl;
+		piLock(DATAS_KEY);
+		DATAS[0][1][0] = 127;
+		piUnlock(DATAS_KEY);
 		delay(1000);
 	}
 */
@@ -143,7 +147,8 @@ int main(){
 		std::cout<<"4 - Settings"<<std::endl;
 		std::cout<<"5 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		std::cin>>choice;	choice = (unsigned int)choice;
+		//std::cin>>choice;	choice = (unsigned int)choice;
+		choice = 3;
 
 		switch (choice) {
 			case 1:
@@ -168,6 +173,7 @@ int main(){
 				break;
 		}
 	}
+
 
 	resetPins();
 	deamonDisplay = false;
@@ -487,7 +493,8 @@ int M_pong() {
 
 		std::cout<<"3 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
+		//std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
+		choiceDisp = 1;
 
 		switch (choiceDisp) {
 			case 1:
@@ -509,6 +516,7 @@ int M_pong() {
 		}
 	}
 
+/*
 	std::cout<<" * Choose foreground color\n"<<std::endl;
 	std::cout<<"RED : 0-255 > ";
 	int redValue  (255);	std::cin>>redValue;
@@ -526,8 +534,9 @@ int M_pong() {
 	std::cout<<"BLUE : 0-255 > ";
 	std::cin>>blueValue;
 	std::vector<int> HUDcolor {redValue, greenValue, blueValue};
-
-	play_pong(screenMode, fgColor, HUDcolor);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
+*/
+	std::vector<int> WHITE {255,255,255};
+	play_pong(screenMode, WHITE, WHITE);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
 	return EXIT_SUCCESS;
 }
 
@@ -615,7 +624,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
 		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
 
-		pongDisplay(ballPosAngle, playerPos, screenMode, fgColor, HUDcolor);
+		pongDisplay(ballPosAngle, playerPos, score, screenMode, fgColor, HUDcolor);
 
 		dTime = 0;
 		prevTime = millis();
@@ -694,6 +703,10 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 		angle = rd()%360;
 	}
 	ballPosAngle[2] = angle*(PI/180.0);	//Now, angle in rad!
+
+	ballPosAngle[0] = 16;
+	ballPosAngle[1] = 8;
+	ballPosAngle[2] = 61*PI/360;
 
 	return EXIT_SUCCESS;
 }
@@ -811,17 +824,170 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 		ballPosAngle[0]	= futureX;
 	}
 
+	if (ballPosAngle[0]<0){	ballPosAngle[0]=0;	}	//Do not exceed capacity of the display ! (out of range, etc.)
+	if (ballPosAngle[0]>31){	ballPosAngle[0]=31;	}
+
 
 	return EXIT_SUCCESS;
 }
 
 
 
-int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos,
-				int const& screenMode, std::vector<int> fgColor, std::vector<int> HUDcolor){
+int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
+				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
 	/* NOT DONE YET */
-	return EXIT_SUCCESS;
+	std::vector<int> BLACK {0,0,0};
 
+
+
+
+//	Il faut faire un systeme de comptage de points:
+//	-	boucle qui relance une manche
+//	-	passer le score en paramètre à cette fontion
+
+
+
+
+
+
+	piLock(DATAS_KEY);
+
+	for (auto line: DATAS){	//Reset blank screen
+		for (auto pixel: line){
+			pixel = BLACK;
+		}
+	}
+
+	switch (screenMode){
+		case 0:	//4*4 cells
+			drawScore(score, HUDcolor);	//Draw score BELOW the ball
+			for (unsigned int i (0); i<SIZE_X*8; i++){	//Draw top and bottom borders
+				DATAS[0][i] = fgColor;
+				DATAS[31][i] = fgColor;
+			}
+			for (unsigned int i (0); i<32; i+=2){	//Draw net
+				DATAS[i][16] = fgColor;
+				DATAS[i+1][15] = fgColor;
+			}
+			for (unsigned int i (0); i<5; i++){	//Draw players
+				DATAS[ playerPos[0]+i ][1] = fgColor;
+				DATAS[ playerPos[1]+i ][30] = fgColor;
+			}
+
+			DATAS[ (int)floor(ballPosAngle[1]) ][ (int)floor(ballPosAngle[0]) ] = fgColor;	//Draw ball
+
+			break;
+
+		case 1:	//4*2 cells
+			for (unsigned int i(0); i<SIZE_X*8; i++){	//draw top and bottom borders
+				DATAS[0][i] = fgColor;
+				DATAS[15][i] = fgColor;
+			}
+			for (int i (0); i<score[0]; i++){	DATAS[0][14-i] = HUDcolor;	}	//Draw scores on the top border
+			for (int i (0); i<score[1]; i++){	DATAS[0][17+i] = HUDcolor;	}
+			DATAS[0][4] = HUDcolor;	DATAS[0][27] = HUDcolor;	//Draw pixel indicating the limit score
+			for (unsigned int i (0); i<15; i+=2){	//Draw net
+				DATAS[i][16] = fgColor;
+				DATAS[i+1][15] = fgColor;
+			}
+			for (unsigned int i (0); i<5; i++){	//Draw players
+				DATAS[ playerPos[0]+i ][1] = fgColor;
+				DATAS[ playerPos[1]+i ][30] = fgColor;
+			}
+			DATAS[ (int)floor(ballPosAngle[1]) ][ (int)floor(ballPosAngle[0]) ] = fgColor;	//Draw ball
+			break;
+		default:
+			break;
+	}
+	piUnlock(DATAS_KEY);
+	return EXIT_SUCCESS;
+}
+
+
+
+int drawScore(std::vector<int> const& scores, std::vector<int> const& HUDcolor){
+	/* NOT DONE YET */
+	int x (10);	//sPX : Start Position on the X-Axis
+	int gap(0);
+
+	for (unsigned int i(0); i<scores.size(); i++){	//Draw for both players
+		gap = i*9;
+		switch(scores[i]){
+			case 0:	//Draw 0
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+				DATAS[x+gap][3] = HUDcolor;									DATAS[x+2+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;									DATAS[x+2+gap][4] = HUDcolor;
+				DATAS[x+gap][5] = HUDcolor;									DATAS[x+2+gap][5] = HUDcolor;
+				DATAS[x+gap][6] = HUDcolor;	DATAS[x+1+gap][6] = HUDcolor;	DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 1:	//Draw 1
+																			DATAS[x+2+gap][2] = HUDcolor;
+																			DATAS[x+2+gap][3] = HUDcolor;
+																			DATAS[x+2+gap][4] = HUDcolor;
+																			DATAS[x+2+gap][5] = HUDcolor;
+																			DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 2:	//Draw 2
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+																			DATAS[x+2+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;	DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+				DATAS[x+gap][5] = HUDcolor;									DATAS[x+2+gap][5] = HUDcolor;
+				DATAS[x+gap][6] = HUDcolor;	DATAS[x+1+gap][6] = HUDcolor;	DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 3:	//Draw 3
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+																			DATAS[x+2+gap][3] = HUDcolor;
+											DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+																			DATAS[x+2+gap][5] = HUDcolor;
+				DATAS[x+gap][6] = HUDcolor;	DATAS[x+1+gap][6] = HUDcolor;	DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 4:	//Draw 4
+				DATAS[x+gap][2] = HUDcolor;									DATAS[x+2+gap][2] = HUDcolor;
+				DATAS[x+gap][3] = HUDcolor;									DATAS[x+2+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;	DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+																			DATAS[x+2+gap][5] = HUDcolor;
+																			DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 5:	//Draw 5
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+				DATAS[x+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;	DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+																			DATAS[x+2+gap][5] = HUDcolor;
+				DATAS[x+gap][6] = HUDcolor;	DATAS[x+1+gap][6] = HUDcolor;	DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 6:	//Draw 6
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+				DATAS[x+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;	DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+				DATAS[x+gap][5] = HUDcolor;									DATAS[x+2+gap][5] = HUDcolor;
+				DATAS[x+gap][6] = HUDcolor;	DATAS[x+1+gap][6] = HUDcolor;	DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 7:	//Draw 7
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+																			DATAS[x+2+gap][3] = HUDcolor;
+																			DATAS[x+2+gap][4] = HUDcolor;
+																			DATAS[x+2+gap][5] = HUDcolor;
+																			DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 8:	//Draw 8
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+				DATAS[x+gap][3] = HUDcolor;									DATAS[x+2+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;	DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+				DATAS[x+gap][5] = HUDcolor;									DATAS[x+2+gap][5] = HUDcolor;
+				DATAS[x+gap][6] = HUDcolor;	DATAS[x+1+gap][6] = HUDcolor;	DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			case 9:	//Draw 9
+				DATAS[x+gap][2] = HUDcolor;	DATAS[x+1+gap][2] = HUDcolor;	DATAS[x+2+gap][2] = HUDcolor;
+				DATAS[x+gap][3] = HUDcolor;									DATAS[x+2+gap][3] = HUDcolor;
+				DATAS[x+gap][4] = HUDcolor;	DATAS[x+1+gap][4] = HUDcolor;	DATAS[x+2+gap][4] = HUDcolor;
+																			DATAS[x+2+gap][5] = HUDcolor;
+																			DATAS[x+2+gap][6] = HUDcolor;
+				break;
+			default:
+				break;
+		}
+	}
+	return EXIT_SUCCESS;
 }
 
 
