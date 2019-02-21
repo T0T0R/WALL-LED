@@ -8,6 +8,10 @@
 #include <random>
 
 #include <ncurses.h>
+#include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+#include "./FFT/FFT.h"
+
 #include <wiringPi.h>
 #include <wiringShift.h>
 
@@ -148,7 +152,8 @@ int main(){
 		std::cout<<"4 - Settings"<<std::endl;
 		std::cout<<"5 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		std::cin>>choice;	choice = (unsigned int)choice;
+		//std::cin>>choice;	choice = (unsigned int)choice;
+		choice=2;
 
 
 		switch (choice) {
@@ -472,6 +477,45 @@ int M_displayPatterns() {
 
 int M_spectrum() {
 	/* NOT DONE YET */
+
+	sf::RenderWindow window(sf::VideoMode(900,900,32),"Window");
+
+	std::string path;
+	int bufferSize (0);
+	std::cout<<"Put an audio file in the Ressources folder (.wav will work, mp3 wont)"<<std::endl;
+	std::cout<<"Enter the file name (example.wav) : ";
+	//std::cin>>path;
+	path="test.flac";
+	std::cout<<"Enter the buffer size treated by the fft (powers of two works best like 16384)"<<std::endl;
+	//std::cin>>bufferSize;
+	bufferSize=8192;
+
+	FFT fft("Ressources/"+path,bufferSize);
+
+	int dTime(0);	//Used to regulate the framerate (FPS constant)
+	int prevTime = millis();
+
+	bool isDone (false);
+
+	while(window.isOpen() && !isDone ){
+
+		while(dTime <= (int)(1000/FPS)){
+			delay((int)(100/FPS));
+			dTime = millis()-prevTime;
+		}
+
+		//std::cout<<dTime<<std::endl;
+		isDone = fft.update() ;
+
+		window.clear() ;
+		fft.draw(window) ;
+		window.display() ;
+
+		dTime=0;
+		prevTime=millis();
+	}
+
+
 	return EXIT_SUCCESS;
 }
 
