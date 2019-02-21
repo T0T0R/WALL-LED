@@ -574,7 +574,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 			playerPos[0]=6;	playerPos[1]=6;
 			break;
 		default:
-			std::cout<<"Could not initialize players : screeMode = "<<screenMode<<std::endl;
+			std::cout<<"Could not initialize players : screenMode = "<<screenMode<<std::endl;
 			break;
 	}
 	pongInitBall(ballPosAngle, screenMode);
