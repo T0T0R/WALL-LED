@@ -649,6 +649,7 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 			}else{	playerPos[0] = playerPos[0]-1;
 			}
 		}else{				//down
+			
 			if (mode==0){	//4*4 cells
 				if(playerPos[0]>=23){	playerPos[0]=23;
 				}else{	playerPos[0] = playerPos[0]+1;
