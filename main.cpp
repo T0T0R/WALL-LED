@@ -16,7 +16,7 @@
 #include <wiringShift.h>
 
 #define DATAS_KEY	0
-#define FPS		60
+#define FPS		400
 #define PI 3.14159265
 
 //Global variables = pure evil !
@@ -28,8 +28,8 @@ unsigned int SIZE_Y (4);
 std::vector<int> PINS {0, 2, 3};
 /*PINS:
 	- Datas pin
-	- shift pin
-	- memory pin
+	- clock pin
+	- latch pin
 */
 
 std::vector<int> RED_VALUES {64, 128, 192, 255};
@@ -152,8 +152,8 @@ int main(){
 		std::cout<<"4 - Settings"<<std::endl;
 		std::cout<<"5 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		//std::cin>>choice;	choice = (unsigned int)choice;
-		choice=2;
+		std::cin>>choice;	choice = (unsigned int)choice;
+		//choice=2;
 
 
 		switch (choice) {
