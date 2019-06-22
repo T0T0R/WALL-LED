@@ -21,7 +21,7 @@ std::vector<int> PINS {0, 2, 3};
 	- latch pin
 */
 
-std::vector<int> test(8);
+std::vector<int> test(32);
 
 
 
@@ -69,13 +69,40 @@ int sendPacket(std::vector<int> & rawDatas) {
 int drawScreen() {
 	/* One frame composed of several (8) cycles of PWM */
     test[0]=7;
-    test[1]=2;
-    test[2]=1;
-    test[3]=0;
-    test[4]=0;
-    test[5]=1;
-    test[6]=2;
+    test[1]=7;
+    test[2]=7;
+    test[3]=7;
+    test[4]=7;
+    test[5]=7;
+    test[6]=7;
     test[7]=7;
+
+    test[8]=7;
+    test[9]=7;
+    test[10]=7;
+    test[11]=7;
+    test[12]=7;
+    test[13]=7;
+    test[14]=7;
+    test[15]=7;
+
+    test[16]=7;
+    test[17]=7;
+    test[18]=7;
+    test[19]=7;
+    test[20]=7;
+    test[21]=7;
+    test[22]=7;
+    test[23]=7;
+
+    test[24]=7;
+    test[25]=7;
+    test[26]=7;
+    test[27]=7;
+    test[28]=7;
+    test[29]=7;
+    test[30]=7;
+    test[31]=7;
 
     for (unsigned int i(0); i<8; i++){
         sendPacket(test);
@@ -104,6 +131,8 @@ int main(){
     while (true){
 
         drawScreen();
+        //delay(150); //60 fps <=> T=165 ms
+
         
     }
 

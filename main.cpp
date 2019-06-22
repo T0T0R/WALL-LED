@@ -16,7 +16,7 @@
 #include <wiringShift.h>
 
 #define DATAS_KEY	0
-#define FPS		400
+#define FPS		60
 #define PI 3.14159265
 
 //Global variables = pure evil !
@@ -200,72 +200,24 @@ int sendPacket(std::vector<int> & rawDatas) {
 
 	resetPins();
 	unsigned int size = rawDatas.size();
-	int i8bitPacket (0);
-	int bitPos (0);
 
 	for (unsigned int i(0); i<size; i++) {	//LSB First, so datas are sent from the end of the table...
 
-		bitPos = i%8;	//Build the packet:
-		switch (bitPos){
-		case 0:
-			if(rawDatas[size-i-1]!=0){	//1st bit = 2^0 = 1
-				i8bitPacket ++;
+		if(rawDatas[size-i-1]!=0){	//If (last-i) bit != 0, sent it
+                digitalWrite(PINS[0], HIGH);
 				rawDatas[size-i-1] = rawDatas[size-i-1]-1;	//Decrease the value, as explained in description of the function
-			}
-			break;
-		case 1:
-			if(rawDatas[size-i-1]!=0){	//2nd bit = 2^1 = 2
-				i8bitPacket = i8bitPacket+2;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-			break;
-		case 2:
-			if(rawDatas[size-i-1]!=0){	//3nd bit = 2^2 = 4
-				i8bitPacket = i8bitPacket+4;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-			break;
-		case 3:
-			if(rawDatas[size-i-1]!=0){	//3rd bit = 2^3 = 8
-				i8bitPacket = i8bitPacket+8;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-			break;
-		case 4:
-			if(rawDatas[size-i-1]!=0){	//4th bit = 2^4 = 16
-				i8bitPacket = i8bitPacket+16;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-			break;
-		case 5:
-			if(rawDatas[size-i-1]!=0){	//5th bit = 2^5 = 32
-				i8bitPacket = i8bitPacket+32;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-			break;
-		case 6:
-			if(rawDatas[size-i-1]!=0){	//6th bit = 2^6 = 64
-				i8bitPacket = i8bitPacket+64;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-			break;
-		case 7:
-			if(rawDatas[size-i-1]!=0){	//7th bit = 2^7 = 128
-				i8bitPacket = i8bitPacket+128;
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;
-			}
-
-			//Correct size for a packet ; can be sent
-			shiftOut(PINS[0], PINS[1], LSBFIRST, i8bitPacket);
-			i8bitPacket = 0;	//Reset the packet after being sent
-			break;
-		default:
-			break;
 		}
+
+        digitalWrite(PINS[1], HIGH);    //Clock up...
+        delayMicroseconds(1);           //...delay...
+        digitalWrite(PINS[1], LOW);     //...Clock down.
+
+        digitalWrite(PINS[0], LOW);     //Turn off the data line
 
 	}
 
-	digitalWrite(PINS[2], HIGH);	//Outputs transmission
+	digitalWrite(PINS[2], HIGH);	//Outputs transmission, and draw dat line !
+	delayMicroseconds(1);
 	digitalWrite(PINS[2], LOW);
 	return EXIT_SUCCESS;
 }
@@ -287,6 +239,7 @@ int drawScreen() {
 	std::vector<std::vector<int>> rawDATAS (convertImageToLED());
 	//std::vector<int> rawDATAS (test);
 	for (auto lineSet: rawDATAS){
+	//auto lineSet = rawDATAS[1];
 		for (unsigned int i(0); i<4; i++){
 			sendPacket(lineSet);
 		}
