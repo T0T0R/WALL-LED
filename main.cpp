@@ -16,7 +16,7 @@
 #include <wiringShift.h>
 
 #define DATAS_KEY	0
-#define FPS		60
+#define FPS		120
 #define PI 3.14159265
 
 //Global variables = pure evil !
@@ -83,21 +83,21 @@ PI_THREAD(deamonLED){
 		dTimeFrame = 0;
 		prevTimeFrame = millis();
 
-		while(dTimeSec<=1000){
-			while(dTimeFrame<=(int)(1000/FPS)){	//Force non-constant update of the screen by introducing delay
+		while(dTimeSec <= 1000){
+			while(dTimeFrame <= (int)(1000/FPS)){	//Forces non-constant update of the screen by introducing delay.
 				delay((int)(100/FPS));
-				dTimeFrame = millis() - prevTimeFrame;	//update duration of the frame
+				dTimeFrame = millis() - prevTimeFrame;	//Updates duration of the frame.
 			}
 
 			nbScreens +=1;
-			drawScreen();	//Draw a frame in several PWM cycles
+			drawScreen();	//Draws a frame in several PWM cycles.
 
-			dTimeFrame = 0;	//reset duration of the frame
+			dTimeFrame = 0;	//Resets duration of the frame.
 			prevTimeFrame = millis();
-			dTimeSec = millis() - prevTimeSec;	//update duration of a second
+			dTimeSec = millis() - prevTimeSec;	//Updates duration of a second.
 		}
 
-		fps = nbScreens;	//Updates FPS variable
+		fps = nbScreens;	//Updates FPS variable.
 		myFile << fps<<" fps."<< std::endl;
 	}
 	myFile.close();
@@ -120,7 +120,7 @@ int main(){
 	}
 
 	piLock(DATAS_KEY);
-	initDATAS();
+	initDATAS();	//Fills the DATAS table with default pattern (bayer mosaic)
 	piUnlock(DATAS_KEY);
 
 
@@ -234,14 +234,13 @@ int resetPins() {	//All output pins at LOW level
 
 
 int drawScreen() {
-	/* One frame composed of several (4) cycles of PWM */
+	/* One frame composed of several (4) cycles of PWM. */
 
 	std::vector<std::vector<int>> rawDATAS (convertImageToLED());
-	//std::vector<int> rawDATAS (test);
-	for (auto lineSet: rawDATAS){
-	//auto lineSet = rawDATAS[1];
+	for (std::vector<int> lineSet: rawDATAS){
+
 		for (unsigned int i(0); i<4; i++){
-			sendPacket(lineSet);
+			sendPacket(lineSet);	
 		}
 	}
 
@@ -252,24 +251,24 @@ int drawScreen() {
 
 std::vector<std::vector<int>> convertImageToLED() {
 	/* Each lineSet is build by getting the values for the pixels in this very line set (SIZE_X*SIZE_Y*8*3 bits)
-		and also the byte read by the shift register (row byte) that chooses the row/line to display (+8 bits)
+		and also the byte read by the shift register (row byte) that chooses the row/line to display (+8 bits).
 	*/
 
 	int rowByteSize (8);	//Not so hard-coded to not forget to leave space at the beginning of
 					//a lineset to store there the data for the shift register that drives the rows.
 
-	std::vector<std::vector<int>> procImage (8);	//Processed image, composed of 8 line sets
+	std::vector<std::vector<int>> procImage (8);	//Processed image, composed of 8 line sets.
 	std::vector<int> procLineSet (SIZE_X*SIZE_Y*8*3 + 8);	//Processed line set of an image
 
 	std::vector<int> tempBWpixel {};
 
 	piLock(DATAS_KEY);
 
-	for (unsigned int lineSet(0); lineSet<8; lineSet++){	//Line set of the picture
+	for (unsigned int lineSet(0); lineSet < 8; lineSet++){	//Line set of the picture
 
 		switch(lineSet){	//Row byte
 			case 0:
-				procLineSet[0] = 9; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;	//We put 9, because it can't be erased that easily when changing PWM cycle
+				procLineSet[0] = 9; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;	//We put 9, because it can't be erased that easily when changing PWM cycle.
 				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
 				break;
 			case 1:
@@ -304,8 +303,8 @@ std::vector<std::vector<int>> convertImageToLED() {
 				break;
 		}
 
-		for (unsigned int cellLine(0); cellLine<SIZE_Y; cellLine++){	//Yeah, we got the line set, but which line of the image in this line set ? cellLine*8 + lineSet !
-			for (unsigned int cell(0); cell<SIZE_X; cell++) {	//Cell in the cellLine (one cell is composed of 8 pixels)
+		for (unsigned int cellLine(0); cellLine < SIZE_Y; cellLine++){	//Yeah, we got the line set, but which line of the image in this line set ? cellLine*8 + lineSet !
+			for (unsigned int cell(0); cell < SIZE_X; cell++) {	//Cell in the cellLine (one cell is composed of 8 pixels).
 				for (unsigned int noPixel(0); noPixel<8; noPixel++) {	//Pixel in the cell
 
 					tempBWpixel = convertPixelBW(DATAS[cellLine*8 + lineSet][cell*8 + noPixel]);
@@ -321,8 +320,8 @@ std::vector<std::vector<int>> convertImageToLED() {
 			}
 		}
 
-		procImage.push_back(procLineSet);	//Add the lineSet to the image
-		procLineSet.clear();	//Empty the temporary lineset, so it can be used again
+		procImage.push_back(procLineSet);	//Add the lineSet to the image.
+		std::fill(procLineSet.begin(), procLineSet.end(), 0);	//Empty the temporary lineset, so it can be used again.
 	}
 	piUnlock(DATAS_KEY);
 	return procImage;
@@ -404,16 +403,16 @@ void initDATAS(){
 	std::vector<int> blue {0,0,255};
 	std::vector<std::vector<int>> lineA {};
 	std::vector<std::vector<int>> lineB {};
-	for (unsigned int pixel (0); pixel<SIZE_X*8; pixel += 2) {
+	for (unsigned int pixel (0); pixel < SIZE_X*8; pixel += 2) {
 		lineA.push_back(red);
 		lineA.push_back(green);
 	}
-	for (unsigned int pixel (0); pixel<SIZE_X*8; pixel += 2) {
+	for (unsigned int pixel (0); pixel < SIZE_X*8; pixel += 2) {
 		lineB.push_back(green);
 		lineB.push_back(blue);
 	}
 
-	for (unsigned int line (0); line<SIZE_Y*8; line+=2) {
+	for (unsigned int line (0); line < SIZE_Y*8; line+=2) {
 		DATAS.push_back(lineA);
 		DATAS.push_back(lineB);
 	}

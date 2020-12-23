@@ -21,6 +21,7 @@ std::vector<int> PINS {0, 2, 3};
 	- latch pin
 */
 
+
 std::vector<int> test(32);
 
 
@@ -51,7 +52,7 @@ int sendPacket(std::vector<int> & rawDatas) {
 		}
 
         digitalWrite(PINS[1], HIGH);    //Clock up...
-        delayMicroseconds(1);           //...delay...
+        delayMicroseconds(1);           //...delay... (1us by default)
         digitalWrite(PINS[1], LOW);     //...Clock down.
 
         digitalWrite(PINS[0], LOW);     //Turn off the data line
@@ -68,46 +69,47 @@ int sendPacket(std::vector<int> & rawDatas) {
 
 int drawScreen() {
 	/* One frame composed of several (8) cycles of PWM */
-    test[0]=7;
-    test[1]=7;
-    test[2]=7;
-    test[3]=7;
-    test[4]=7;
-    test[5]=7;
-    test[6]=7;
-    test[7]=7;
+    test[0]=7;  //Rows
+    test[1]=6;
+    test[2]=5;
+    test[3]=4;
+    test[4]=3;
+    test[5]=2;
+    test[6]=1;
+    test[7]=0;
 
-    test[8]=7;
-    test[9]=7;
-    test[10]=7;
-    test[11]=7;
-    test[12]=7;
-    test[13]=7;
-    test[14]=7;
-    test[15]=7;
+    test[8]=7;  //RED
+    test[9]=6;
+    test[10]=5;
+    test[11]=4;
+    test[12]=3;
+    test[13]=2;
+    test[14]=1;
+    test[15]=0;
 
-    test[16]=7;
-    test[17]=7;
-    test[18]=7;
-    test[19]=7;
-    test[20]=7;
-    test[21]=7;
-    test[22]=7;
+    test[16]=0; //GREEN
+    test[17]=1;
+    test[18]=2;
+    test[19]=3;
+    test[20]=4;
+    test[21]=5;
+    test[22]=6;
     test[23]=7;
 
-    test[24]=7;
-    test[25]=7;
-    test[26]=7;
-    test[27]=7;
-    test[28]=7;
-    test[29]=7;
-    test[30]=7;
-    test[31]=7;
+    test[24]=4; //BLUE
+    test[25]=1;
+    test[26]=4;
+    test[27]=1;
+    test[28]=4;
+    test[29]=1;
+    test[30]=4;
+    test[31]=1;
 
-    for (unsigned int i(0); i<8; i++){
+    for (unsigned int i(0); i<8; i++){  //Draws 8 frames to allow for PWM.
         sendPacket(test);
+        delayMicroseconds(100);
+        //delay(100);
     }
-
 	return EXIT_SUCCESS;
 }
 
@@ -132,7 +134,7 @@ int main(){
 
         drawScreen();
         //delay(150); //60 fps <=> T=165 ms
-
+        //delay(1);
         
     }
 
