@@ -7,60 +7,59 @@
 #include <vector>
 #include <random>
 
+#include <cstdio>
+#include <unistd.h>				//Needed for I2C port
+#include <fcntl.h>				//Needed for I2C port
+#include <sys/ioctl.h>			//Needed for I2C port
+#include <linux/i2c-dev.h>		//Needed for I2C port
+
 #include <ncurses.h>
-#include <SFML/Graphics.hpp>
-#include <SFML/Audio.hpp>
-#include "./FFT/FFT.h"
+//#include <SFML/Graphics.hpp>
+//#include <SFML/Audio.hpp>
+//#include "./FFT/FFT.h"
 
 #include <wiringPi.h>
-#include <wiringShift.h>
+//#include <wiringShift.h>
 
 #define DATAS_KEY	0
-#define FPS		120
+#define FPS		60
 #define PI 3.14159265
+#define I2C_ADDR 0x04	//I2C address of the slave
 
 //Global variables = pure evil !
 bool deamonDisplay (true);
-std::vector<std::vector<std::vector<int>>> DATAS {};
+std::vector<std::vector<std::vector<unsigned char>>> DATAS {};
 int fps (0);
-unsigned int SIZE_X (4);
-unsigned int SIZE_Y (4);
-std::vector<int> PINS {0, 2, 3};
-/*PINS:
-	- Datas pin
-	- clock pin
-	- latch pin
-*/
+unsigned int SIZE_X (3);
+unsigned int SIZE_Y (2);
+unsigned int nbOfPWMcycles (8);
+int file_i2c;	//Output of I2C
 
-std::vector<int> RED_VALUES {64, 128, 192, 255};
-std::vector<int> GREEN_VALUES {64, 128, 192, 255};
-std::vector<int> BLUE_VALUES {64, 128, 192, 255};
+std::vector<unsigned char> RED_VALUES {};// {64, 128, 192, 255};
+std::vector<unsigned char> GREEN_VALUES {};// {64, 128, 192, 255};
+std::vector<unsigned char> BLUE_VALUES {};// {64, 128, 192, 255};
 
 
 
 /******** PROTOTYPES ********/
 int askUser();
-int sendPacket(std::vector<int> & rawDatas);
-int resetPins();
+int sendLine(unsigned char const& color, unsigned char const& row, unsigned char const& cell);
 int drawScreen();
-std::vector<int> convertPixelBW(std::vector<int> const& pixel);
-std::vector<std::vector<int>> convertImageToLED();
-int convertValuePWM(int const& value, int const& color);
 void initDATAS();
+int i2cSetup();
 int M_displayPatterns();
 int M_spectrum();
 int M_pong();
-int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
+int play_pong(int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor);
 int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
 int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode);
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime);
 int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
-				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor);
-bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score);
-int drawScore(std::vector<int> const& score, std::vector<int> const& HUDcolor);
+				int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor);
+bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score, int const& screenMode);
+int drawScore(std::vector<int> const& score, std::vector<unsigned char> const& HUDcolor);
 int M_settings();
 
-std::vector<int> test(16);
 
 
 PI_THREAD(deamonLED){
@@ -81,16 +80,18 @@ PI_THREAD(deamonLED){
 		prevTimeSec = millis();
 
 		dTimeFrame = 0;
-		prevTimeFrame = millis();
+		prevTimeFrame = prevTimeSec;
 
-		while(dTimeSec <= 1000){
+		while(dTimeSec <= 1000 && deamonDisplay){
 			while(dTimeFrame <= (int)(1000/FPS)){	//Forces non-constant update of the screen by introducing delay.
 				delay((int)(100/FPS));
 				dTimeFrame = millis() - prevTimeFrame;	//Updates duration of the frame.
 			}
 
 			nbScreens +=1;
-			drawScreen();	//Draws a frame in several PWM cycles.
+			if(drawScreen()==EXIT_FAILURE){	//Draws a frame in several PWM cycles.
+				deamonDisplay = false;
+			}
 
 			dTimeFrame = 0;	//Resets duration of the frame.
 			prevTimeFrame = millis();
@@ -115,12 +116,10 @@ int main(){
 		return EXIT_FAILURE;
 	}
 
-	for (unsigned int pin: PINS){	//Enables outputs
-		pinMode(pin, OUTPUT);
-	}
+	i2cSetup();
 
 	piLock(DATAS_KEY);
-	initDATAS();	//Fills the DATAS table with default pattern (bayer mosaic)
+	initDATAS();	//Fills the DATAS table with default pattern
 	piUnlock(DATAS_KEY);
 
 
@@ -152,8 +151,8 @@ int main(){
 		std::cout<<"4 - Settings"<<std::endl;
 		std::cout<<"5 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		std::cin>>choice;	choice = (unsigned int)choice;
-		//choice=2;
+		//std::cin>>choice;	choice = (unsigned int)choice;
+		choice=3;
 
 
 		switch (choice) {
@@ -180,8 +179,6 @@ int main(){
 		}
 	}
 
-
-	resetPins();
 	deamonDisplay = false;
 	delay(100);
 	return EXIT_SUCCESS;
@@ -190,219 +187,76 @@ int main(){
 
 
 
-
-
-
-int sendPacket(std::vector<int> & rawDatas) {
-/* PWM ratio are stored with values V between 0 and 3.
-	When a value V is not 0, it sets on an output, and this value is decreased.
-	Therefore, after V passes in the loop, the output is turned off, simulating PWM */
-
-	resetPins();
-	unsigned int size = rawDatas.size();
-
-	for (unsigned int i(0); i<size; i++) {	//LSB First, so datas are sent from the end of the table...
-
-		if(rawDatas[size-i-1]!=0){	//If (last-i) bit != 0, sent it
-                digitalWrite(PINS[0], HIGH);
-				rawDatas[size-i-1] = rawDatas[size-i-1]-1;	//Decrease the value, as explained in description of the function
-		}
-
-        digitalWrite(PINS[1], HIGH);    //Clock up...
-        delayMicroseconds(1);           //...delay...
-        digitalWrite(PINS[1], LOW);     //...Clock down.
-
-        digitalWrite(PINS[0], LOW);     //Turn off the data line
-
+int i2cSetup(){
+	//----- OPEN THE I2C BUS -----
+	char *filename = (char*)"/dev/i2c-1";
+	if ((file_i2c = open(filename, O_RDWR)) < 0)
+	{
+		//ERROR HANDLING: you can check errno to see what went wrong
+		std::cout<<"Failed to open the i2c bus"<<std::endl;
+		return EXIT_FAILURE;
+	}
+	
+	if (ioctl(file_i2c, I2C_SLAVE, I2C_ADDR) < 0)
+	{
+		std::cout<<"Failed to acquire bus access and/or talk to slave.\n"<<std::endl;
+		//ERROR HANDLING; you can check errno to see what went wrong
+		return EXIT_FAILURE;
 	}
 
-	digitalWrite(PINS[2], HIGH);	//Outputs transmission, and draw dat line !
-	delayMicroseconds(1);
-	digitalWrite(PINS[2], LOW);
 	return EXIT_SUCCESS;
 }
 
 
 
-int resetPins() {	//All output pins at LOW level
-	for (unsigned int pin : PINS) {
-		digitalWrite(pin, LOW);
+int sendLine(unsigned char const& color, unsigned char const& row, unsigned char const& cell){
+	/* Send a line of pixels through I2C to the STM32
+	   [ COLOR , ROW , CELL , 0-255 , 0-255 , 0-255 , 0-255 , 0-255 , 0-255 , 0-255 , 0-255]
+	*/
+
+	ssize_t length = 11;
+	unsigned char buffer[11] = {0};
+
+	buffer[0] = color; buffer[1] = row; buffer[2] = cell;	// First 3 bytes required by the code on the STM32 to know which pixels to update
+
+	for (unsigned int column (0); column<8; column++){
+		buffer[3+column] = DATAS[row][cell*8 + column][color];	// The next 8 bytes of a row in one cell
 	}
+
+	if (write(file_i2c, buffer, length) != length){		//write() returns the number of bytes actually written
+		/* ERROR HANDLING: i2c transaction failed */
+		printf("Failed to write to the i2c bus.\n");
+		return EXIT_FAILURE;
+	}
+
 	return EXIT_SUCCESS;
 }
 
 
 
 int drawScreen() {
-	/* One frame composed of several (4) cycles of PWM. */
+	/* Send red, green and blue lines through I2C to the STM32 */
 
-	std::vector<std::vector<int>> rawDATAS (convertImageToLED());
-	for (std::vector<int> lineSet: rawDATAS){
-
-		for (unsigned int i(0); i<4; i++){
-			sendPacket(lineSet);	
+	for (unsigned int row (0); row<DATAS.size(); row++){
+		for (unsigned int cell (0); cell<SIZE_X; cell++){
+			if (sendLine(0, row, cell)==EXIT_FAILURE){ return EXIT_FAILURE;	}
+			if (sendLine(1, row, cell)==EXIT_FAILURE){ return EXIT_FAILURE;	}
+			if (sendLine(2, row, cell)==EXIT_FAILURE){ return EXIT_FAILURE;	}
 		}
-	}
-
+ 	}
 	return EXIT_SUCCESS;
 }
 
 
 
-std::vector<std::vector<int>> convertImageToLED() {
-	/* Each lineSet is build by getting the values for the pixels in this very line set (SIZE_X*SIZE_Y*8*3 bits)
-		and also the byte read by the shift register (row byte) that chooses the row/line to display (+8 bits).
-	*/
-
-	int rowByteSize (8);	//Not so hard-coded to not forget to leave space at the beginning of
-					//a lineset to store there the data for the shift register that drives the rows.
-
-	std::vector<std::vector<int>> procImage (8);	//Processed image, composed of 8 line sets.
-	std::vector<int> procLineSet (SIZE_X*SIZE_Y*8*3 + 8);	//Processed line set of an image
-
-	std::vector<int> tempBWpixel {};
-
-	piLock(DATAS_KEY);
-
-	for (unsigned int lineSet(0); lineSet < 8; lineSet++){	//Line set of the picture
-
-		switch(lineSet){	//Row byte
-			case 0:
-				procLineSet[0] = 9; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;	//We put 9, because it can't be erased that easily when changing PWM cycle.
-				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
-				break;
-			case 1:
-				procLineSet[0] = 0; procLineSet[1] = 9; procLineSet[2] = 0; procLineSet[3] = 0;
-				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
-				break;
-			case 2:
-				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 9; procLineSet[3] = 0;
-				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
-				break;
-			case 3:
-				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 9;
-				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
-				break;
-			case 4:
-				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
-				procLineSet[4] = 9; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 0;
-				break;
-			case 5:
-				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
-				procLineSet[4] = 0; procLineSet[5] = 9; procLineSet[6] = 0; procLineSet[7] = 0;
-				break;
-			case 6:
-				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
-				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 9; procLineSet[7] = 0;
-				break;
-			case 7:
-				procLineSet[0] = 0; procLineSet[1] = 0; procLineSet[2] = 0; procLineSet[3] = 0;
-				procLineSet[4] = 0; procLineSet[5] = 0; procLineSet[6] = 0; procLineSet[7] = 9;
-				break;
-			default:
-				break;
-		}
-
-		for (unsigned int cellLine(0); cellLine < SIZE_Y; cellLine++){	//Yeah, we got the line set, but which line of the image in this line set ? cellLine*8 + lineSet !
-			for (unsigned int cell(0); cell < SIZE_X; cell++) {	//Cell in the cellLine (one cell is composed of 8 pixels).
-				for (unsigned int noPixel(0); noPixel<8; noPixel++) {	//Pixel in the cell
-
-					tempBWpixel = convertPixelBW(DATAS[cellLine*8 + lineSet][cell*8 + noPixel]);
-					//in red:
-					procLineSet[rowByteSize + cellLine*SIZE_X*8*3 + cell*8*3 + noPixel] = tempBWpixel[0];
-
-					//in green:
-					procLineSet[rowByteSize + cellLine*SIZE_X*8*3 + cell*8*3 + noPixel+8] = tempBWpixel[1];
-
-					//in blue:
-					procLineSet[rowByteSize + cellLine*SIZE_X*8*3 + cell*8*3 + noPixel+16] = tempBWpixel[2];
-				}
-			}
-		}
-
-		procImage.push_back(procLineSet);	//Add the lineSet to the image.
-		std::fill(procLineSet.begin(), procLineSet.end(), 0);	//Empty the temporary lineset, so it can be used again.
-	}
-	piUnlock(DATAS_KEY);
-	return procImage;
-}
-
-
-
-std::vector<int> convertPixelBW(std::vector<int> const& pixel){
-/* Converts hue from 3*(0-255) to 3*(0-3) */
-	int Red = convertValuePWM(pixel[0], 0);
-	int Green = convertValuePWM(pixel[1], 1);
-	int Blue = convertValuePWM(pixel[2], 2);
-
-	std::vector<int> result {Red, Green, Blue};
-	return result;
-}
-
-
-
-int convertValuePWM(int const& value, int const& color){
-	/* Basically, converts values from 0-255 to 0-3.
-		Conversion can be non-linear if confugured by user in
-		the "Calibration" menu.
-		Linear by default.
-	*/
-	switch (color){
-		case 0:	//RED
-			if (value<RED_VALUES[0]) {
-				return 0;
-			} else if (value<RED_VALUES[1]) {
-				return 1;
-			} else if (value<RED_VALUES[2]) {
-				return 2;
-			} else if (value<RED_VALUES[3]) {
-				return 3;
-			} else {
-				return 4;
-			}
-			break;
-		case 1:	//GREEN
-			if (value<GREEN_VALUES[0]) {
-				return 0;
-			} else if (value<GREEN_VALUES[1]) {
-				return 1;
-			} else if (value<GREEN_VALUES[2]) {
-				return 2;
-			} else if (value<GREEN_VALUES[3]) {
-				return 3;
-			} else {
-				return 4;
-			}
-			break;
-		case 2:	//BLUE
-			if (value<BLUE_VALUES[0]) {
-				return 0;
-			} else if (value<BLUE_VALUES[1]) {
-				return 1;
-			} else if (value<BLUE_VALUES[2]) {
-				return 2;
-			} else if (value<BLUE_VALUES[3]) {
-				return 3;
-			} else {
-				return 4;
-			}
-			break;
-		default:
-			return 0;
-			break;
-	}
-	return 0;
-}
-
-
-
 void initDATAS(){
-	//Set a test pattern as the frame
-	std::vector<int> red {255,0,0};
-	std::vector<int> green{0,255,0};
-	std::vector<int> blue {0,0,255};
-	std::vector<std::vector<int>> lineA {};
-	std::vector<std::vector<int>> lineB {};
+	/* Set a test pattern as the frame (bayer mosaic)*/
+
+	std::vector<unsigned char> red {255,0,0};
+	std::vector<unsigned char> green{0,255,0};
+	std::vector<unsigned char> blue {0,0,255};
+	std::vector<std::vector<unsigned char>> lineA {};
+	std::vector<std::vector<unsigned char>> lineB {};
 	for (unsigned int pixel (0); pixel < SIZE_X*8; pixel += 2) {
 		lineA.push_back(red);
 		lineA.push_back(green);
@@ -416,6 +270,16 @@ void initDATAS(){
 		DATAS.push_back(lineA);
 		DATAS.push_back(lineB);
 	}
+
+	/* Initialization of red, green and blue informations */ 
+	for (unsigned int PWMlevel (0); PWMlevel<nbOfPWMcycles; PWMlevel++){
+		RED_VALUES.push_back((255/nbOfPWMcycles)*(PWMlevel+1));
+		GREEN_VALUES.push_back((255/nbOfPWMcycles)*(PWMlevel+1));
+		BLUE_VALUES.push_back((255/nbOfPWMcycles)*(PWMlevel+1));
+	}
+	RED_VALUES = std::vector<unsigned char> {31, 63, 95, 127, 159, 191, 223, 255};
+	GREEN_VALUES = std::vector<unsigned char> {63, 95, 127, 159, 191, 223, 255, 255};
+	BLUE_VALUES = std::vector<unsigned char> {95, 127, 159, 191, 223, 255, 255, 255};
 }
 
 
@@ -429,7 +293,7 @@ int M_displayPatterns() {
 
 int M_spectrum() {
 	/* NOT DONE YET */
-
+	/*
 	sf::RenderWindow window(sf::VideoMode(900,900,32),"Window");
 
 	std::string path;
@@ -467,7 +331,7 @@ int M_spectrum() {
 		prevTime=millis();
 	}
 
-
+*/
 	return EXIT_SUCCESS;
 }
 
@@ -481,7 +345,7 @@ int M_pong() {
 	while (choiceDisp<1 || choiceDisp>3) {
 		choiceDisp = 0;
 		std::cout<<" * Choose display"<<std::endl;
-		std::cout<<"1 - 4*2 cells"<<std::endl;
+		std::cout<<"1 - 3*2 cells"<<std::endl;
 
 		if (SIZE_Y==4){	//Display the other choice only if available
 			std::cout<<"2 - 4*4 cells"<<std::endl;
@@ -489,8 +353,8 @@ int M_pong() {
 
 		std::cout<<"3 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
-		
+		//std::cin>>choiceDisp;	choiceDisp = (unsigned int)choiceDisp;
+		choiceDisp=1;
 		switch (choiceDisp) {
 			case 1:
 				screenMode = 1;
@@ -510,33 +374,36 @@ int M_pong() {
 				break;
 		}
 	}
-
+	unsigned int temp (0);
 	std::cout<<" * Choose foreground color\n"<<std::endl;
 	std::cout<<"RED : 0-255 > ";
-	int redValue  (255);	std::cin>>redValue;
+	unsigned char redValue  (255);
+	std::cin>>temp;	redValue = (unsigned char)temp;
 	std::cout<<"GREEN : 0-255 > ";
-	int greenValue (255);	std::cin>>greenValue;
+	unsigned char greenValue (255);
+	std::cin>>temp;	greenValue = (unsigned char)temp;
 	std::cout<<"BLUE : 0-255 > ";
-	int blueValue (255);	std::cin>>blueValue;
-	std::vector<int> fgColor {redValue, greenValue, blueValue};
+	unsigned char blueValue (255);
+	std::cin>>temp;	blueValue = (unsigned char)temp;
+	std::vector<unsigned char> fgColor {redValue, greenValue, blueValue};
 
 	std::cout<<" * Choose HUD color\n"<<std::endl;
 	std::cout<<"RED : 0-255 > ";
-	std::cin>>redValue;
+	std::cin>>temp;	redValue = (unsigned char)temp;
 	std::cout<<"GREEN : 0-255 > ";
-	std::cin>>greenValue;
+	std::cin>>temp;	greenValue = (unsigned char)temp;
 	std::cout<<"BLUE : 0-255 > ";
-	std::cin>>blueValue;
-	std::vector<int> HUDcolor {redValue, greenValue, blueValue};
+	std::cin>>temp;	blueValue = (unsigned char)temp;
+	std::vector<unsigned char> HUDcolor {255, 255, 0};
 
-	play_pong(screenMode, fgColor, HUDcolor);	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
+	play_pong(screenMode, fgColor, HUDcolor);	//screenMode : =0 (4*4 cells), =1 (3*2 cells)
 	return EXIT_SUCCESS;
 }
 
 
 
-int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
-	//screenMode : =0 (4*4 cells), =1 (4*2 cells)
+int play_pong(int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor){
+	//screenMode : =0 (4*4 cells), =1 (3*2 cells)
 
 	std::ofstream myFile;
 	myFile.open ("ball.txt");
@@ -566,7 +433,7 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 		case 0:	//4*4 cells
 			playerPos[0]=13;	playerPos[1]=13;
 			break;
-		case 1:	//4*2 cells
+		case 1:	//3*2 cells
 			playerPos[0]=6;	playerPos[1]=6;
 			break;
 		default:
@@ -617,9 +484,22 @@ int play_pong(int const& screenMode, std::vector<int> const& fgColor, std::vecto
 		pongMoveBall(ballPosAngle, playerPos, screenMode, dTime);	//Move the ball according to the delay between two frames
 		myFile<<floor(ballPosAngle[0])<<"\t"<<floor(ballPosAngle[1])<<"\t"<<ballPosAngle[2]*180/PI<<std::endl;
 
-		if(calcScore(ballPosAngle, score)){	//If a new point has been made...
-			delay(500);
+		if(calcScore(ballPosAngle, score, screenMode)){	//If a new point has been made...
+			delay(1500);
+			flushinp();
 			pongInitBall(ballPosAngle, screenMode);	//New ball
+
+			switch (screenMode){	//Reset player positions
+				case 0:	//4*4 cells
+					playerPos[0]=13;	playerPos[1]=13;
+					break;
+				case 1:	//3*2 cells
+					playerPos[0]=6;	playerPos[1]=6;
+					break;
+				default:
+					std::cout<<"Could not initialize players : screenMode = "<<screenMode<<std::endl;
+					break;
+			}
 
 			if (score[0]==10||score[1]==10){	//If someone won, stop the game
 				gameRunning = false;
@@ -650,7 +530,7 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 				if(playerPos[0]>=23){	playerPos[0]=23;
 				}else{	playerPos[0] = playerPos[0]+1;
 				}
-			}else{			//4*2 cells
+			}else{			//3*2 cells
 				if(playerPos[0]>=9){	playerPos[0]=9;
 				}else{	playerPos[0] = playerPos[0]+1;
 				}
@@ -669,7 +549,7 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 				}else{	playerPos[1] = playerPos[1]+1;
 				}
 	
-			}else{			//4*2 cells
+			}else{			//3*2 cells
 				if(playerPos[1]>=9){	playerPos[1]=9;
 				}else{	playerPos[1] = playerPos[1]+1;
 				}
@@ -684,14 +564,14 @@ int pongMovePlayer(int const& player, int const& direction, std::vector<int> & p
 
 int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 	std::random_device rd{};
-
-	ballPosAngle[0] = 15+(rd()%2);	//X-Axis
-
-	switch (screenMode){			//Y-Axis
+	std::cout<<"*new ball!"<<std::endl;
+	switch (screenMode){
 		case 0:	//4*4 cells
-			ballPosAngle[1] = 15+(rd()%2);
+			ballPosAngle[0] = 15+(rd()%2);	//X-Axis
+			ballPosAngle[1] = 15+(rd()%2);	//Y-Axis
 			break;
-		case 1:	//4*2 cells
+		case 1:	//3*2 cells
+			ballPosAngle[0] = 11+(rd()%2);
 			ballPosAngle[1] = 7+(rd()%2);
 			break;
 		default:
@@ -701,7 +581,7 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 
 	//Angle in degrees, easier to generate than in rad:
 	int angle = rd()%360;
-	while (angle==90||angle==180||angle==270){	//We do not want a vertical ball nor horizontal,
+	while ((angle>80&&angle<100)||(angle>170&&angle<190)||(angle>260&&angle<280)||(angle>350&&angle<10)){	//We do not want a vertical ball nor horizontal,
 												//	so please find an angle != vertical && != horizontal
 		angle = rd()%360;
 	}
@@ -714,7 +594,7 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 
 
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime){
-	double SPEED (50.0);	//Arbitrary fixed speed value of 20 pixels per second. Because I can.
+	double SPEED (15.0);	//Arbitrary fixed speed value of 10 pixels per second. Because I can.
 
 	double futureX = SPEED*((double)(dTime)/1000) * cos(ballPosAngle[2]) + ballPosAngle[0];
 	double futureY = SPEED*((double)(dTime)/1000) * sin(ballPosAngle[2]) + ballPosAngle[1];
@@ -739,7 +619,7 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 					ballPosAngle[2] = -1.0* ballPosAngle[2];
 				}else{ballPosAngle[1]	= futureY;}
 				break;
-			case 1:	//4*2 cells
+			case 1:	//3*2 cells
 				if (futurePosY >= 15){
 					ballPosAngle[1] = ballPosAngle[1];	//Reflect
 					ballPosAngle[2] = -1.0* ballPosAngle[2];
@@ -753,7 +633,7 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 
 	bool hitPaddle(false);
 	/* Collision on the X-Axis */
-	if (futurePosX <= 1 && ballPosAngle[0]>2){		//Left paddle
+	if (futurePosX <= 1 && ballPosAngle[0]>=2){		//Left paddle
 
 		switch(screenMode){
 			case 0:	//4*4 cells, paddles are 6px wide:
@@ -767,7 +647,7 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 					}
 				}
 				break;
-			case 1:	//4*2 cells, paddles are 4px wide:
+			case 1:	//3*2 cells, paddles are 4px wide:
 				for (int y(0); y<4; y++){
 					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
 						ballPosAngle[0] = 2+(futureX-futurePosX);	//Reflect position
@@ -788,45 +668,43 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 
 
 
-	}else if (futurePosX >= 30 && ballPosAngle[0]<30){		//Right paddle
+		
+	}else{//	If it didn't hit the left paddle, maybe the right one ?
+		if(futurePosX >= 30 and ballPosAngle[0]<=30 and screenMode==0){	//4*4 cells, paddles are 6px wide:
+			for (int y(0); y<6; y++){
+				if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
+					ballPosAngle[0] = 30-(futureX-futurePosX);
+					ballPosAngle[2] = PI - ballPosAngle[2];
+					std::cout<<"bounce right"<<std::endl;
+					hitPaddle = true;
+					break;
+				}
+			}
 
-		switch(screenMode){
-			case 0:	//4*4 cells, paddles are 6px wide:
-				for (int y(0); y<6; y++){
-					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
-						ballPosAngle[0] = 30-(futureX-futurePosX);
-						ballPosAngle[2] = PI - ballPosAngle[2];
-						std::cout<<"bounce right"<<std::endl;
-						hitPaddle = true;
-						break;
-					}
+		}else if(futurePosX >= 22 and ballPosAngle[0]<=22 and screenMode==1){	//3*2 cells, paddles are 4px wide:
+			for (int y(0); y<4; y++){
+				if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
+					ballPosAngle[0] = 30-(futureX-futurePosX);
+					ballPosAngle[2] = PI - ballPosAngle[2];
+					std::cout<<"bounce right"<<std::endl;
+					hitPaddle = true;
+					break;
 				}
-				break;
-			case 1:	//4*2 cells, paddles are 4px wide:
-				for (int y(0); y<4; y++){
-					if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
-						ballPosAngle[0] = 30-(futureX-futurePosX);
-						ballPosAngle[2] = PI - ballPosAngle[2];
-						std::cout<<"bounce right"<<std::endl;
-						hitPaddle = true;
-						break;
-					}
-				}
-				break;
-			default:
-				break;
-		}
-		if (!hitPaddle){
+			}
+		}else{	//Not in the zone of paddles : can not bounce
 			ballPosAngle[0]	= futureX;
 		}
 
-	}else{	//Not in the zone of paddles : can not bounce
-		ballPosAngle[0]	= futureX;
+		if (!hitPaddle){
+			ballPosAngle[0]	= futureX;
+		}
 	}
 
-	if (ballPosAngle[0]<0){	ballPosAngle[0]=0;	}	//Do not exceed capacity of the display ! (out of range, etc.)
-	if (ballPosAngle[0]>31){	ballPosAngle[0]=31;	}
+	//Do not exceed capacity of the display ! (out of range, etc.)
+	if (ballPosAngle[0]<0){	ballPosAngle[0]=0;	}	//On the left edge...
 
+	if (ballPosAngle[0]>31 && screenMode==0){	ballPosAngle[0]=31;	// ... and on the right edge
+	}else if(ballPosAngle[0]>23 && screenMode==1){	ballPosAngle[0]=23;	}
 
 	return EXIT_SUCCESS;
 }
@@ -834,14 +712,14 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 
 
 int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const& playerPos, std::vector<int> const& score,
-				int const& screenMode, std::vector<int> const& fgColor, std::vector<int> const& HUDcolor){
-	std::vector<int> BLACK {0,0,0};
+				int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor){
+	std::vector<unsigned char> BLACK {0,0,0};
 
 	piLock(DATAS_KEY);
 
-	for (auto line: DATAS){	//Reset blank screen
-		for (auto pixel: line){
-			pixel = BLACK;
+	for (unsigned int line (0); line<DATAS.size(); line++){	//Reset blank screen
+		for (unsigned int pixel (0); pixel<DATAS[0].size(); pixel++){
+			DATAS[line][pixel] = BLACK;
 		}
 	}
 
@@ -856,7 +734,7 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 				DATAS[i][16] = fgColor;
 				DATAS[i+1][15] = fgColor;
 			}
-			for (unsigned int i (0); i<5; i++){	//Draw players
+			for (unsigned int i (0); i<6; i++){	//Draw players (6px long)
 				DATAS[ playerPos[0]+i ][1] = fgColor;
 				DATAS[ playerPos[1]+i ][30] = fgColor;
 			}
@@ -865,23 +743,23 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 
 			break;
 
-		case 1:	//4*2 cells
+		case 1:	//3*2 cells
 			for (unsigned int i(0); i<SIZE_X*8; i++){	//draw top and bottom borders
 				DATAS[0][i] = fgColor;
 				DATAS[15][i] = fgColor;
 			}
 
-			for (int i (0); i<score[0]; i++){	DATAS[0][14-i] = HUDcolor;	}	//Draw scores on the top border
-			for (int i (0); i<score[1]; i++){	DATAS[0][17+i] = HUDcolor;	}
-			DATAS[0][4] = HUDcolor;	DATAS[0][27] = HUDcolor;	//Draw pixel indicating the limit score
+			for (int i (0); i<score[0]; i++){	DATAS[0][9-i] = HUDcolor;	}	//Draw scores on the top border
+			for (int i (0); i<score[1]; i++){	DATAS[0][14+i] = HUDcolor;	}
+			//DATAS[0][4] = HUDcolor;	DATAS[0][27] = HUDcolor;	//Draw pixel indicating the limit score
 
 			for (unsigned int i (0); i<15; i+=2){	//Draw net
-				DATAS[i][16] = fgColor;
-				DATAS[i+1][15] = fgColor;
+				DATAS[i][12] = fgColor;
+				DATAS[i+1][11] = fgColor;
 			}
-			for (unsigned int i (0); i<5; i++){	//Draw players
+			for (unsigned int i (0); i<4; i++){	//Draw players (4px long)
 				DATAS[ playerPos[0]+i ][1] = fgColor;
-				DATAS[ playerPos[1]+i ][30] = fgColor;
+				DATAS[ playerPos[1]+i ][22] = fgColor;
 			}
 			DATAS[ (int)floor(ballPosAngle[1]) ][ (int)floor(ballPosAngle[0]) ] = fgColor;	//Draw ball
 			break;
@@ -889,21 +767,36 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 			break;
 	}
 	piUnlock(DATAS_KEY);
+	//drawScreen();
 	return EXIT_SUCCESS;
 }
 
 
 
-bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score){
+bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score, int const& screenMode){
 /*Returns true if a new point has been made*/
 	bool newPoint = false;
-	if (ballPosAngle[0]<1 && score[1]<10){
+
+	if (ballPosAngle[0]<1 && score[1]<10){	//Point for the left player
 		score[1]=score[1]+1;
 		newPoint = true;
 	}
-	if (ballPosAngle[0]>30 && score[0]<10){
-		score[0]=score[0]+1;
-		newPoint = true;
+
+	switch(screenMode){	//Point for the right player
+		case 0:	//4*4 cells
+			if (ballPosAngle[0]>30 && score[0]<10){
+				score[0]=score[0]+1;
+				newPoint = true;
+			}
+		break;
+		case 1:	//3*4 cells
+			if (ballPosAngle[0]>22 && score[0]<10){
+				score[0]=score[0]+1;
+				newPoint = true;
+			}
+		break;
+		default:
+		break;
 	}
 
 	return newPoint;
@@ -911,7 +804,7 @@ bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score
 
 
 
-int drawScore(std::vector<int> const& scores, std::vector<int> const& HUDcolor){
+int drawScore(std::vector<int> const& scores, std::vector<unsigned char> const& HUDcolor){
 	/* NOT DONE YET */
 	int x (10);	//sPX : Start Position on the X-Axis
 	int gap(0);
