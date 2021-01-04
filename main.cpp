@@ -14,12 +14,9 @@
 #include <linux/i2c-dev.h>		//Needed for I2C port
 
 #include <ncurses.h>
-//#include <SFML/Graphics.hpp>
-//#include <SFML/Audio.hpp>
-//#include "./FFT/FFT.h"
 
+#include <SFML/Network.hpp>
 #include <wiringPi.h>
-//#include <wiringShift.h>
 
 #define DATAS_KEY	0
 #define FPS		60
@@ -34,6 +31,7 @@ unsigned int SIZE_X (3);
 unsigned int SIZE_Y (2);
 unsigned int nbOfPWMcycles (8);
 int file_i2c;	//Output of I2C
+unsigned int nbOfBands (23);
 
 std::vector<unsigned char> RED_VALUES {};// {64, 128, 192, 255};
 std::vector<unsigned char> GREEN_VALUES {};// {64, 128, 192, 255};
@@ -46,9 +44,14 @@ int askUser();
 int sendLine(unsigned char const& color, unsigned char const& row, unsigned char const& cell);
 int drawScreen();
 void initDATAS();
+int sendSpectrumBand(std::vector<unsigned char> const& data, unsigned char const& cellColumn);
 int i2cSetup();
+float map(float const& value, float const& a1, float const& a2, float const& b1, float const& b2);
+
 int M_displayPatterns();
+
 int M_spectrum();
+
 int M_pong();
 int play_pong(int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor);
 int pongMovePlayer(int const& player, int const& direction, std::vector<int> & playerPos, int const& mode);
@@ -58,6 +61,7 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 				int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor);
 bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score, int const& screenMode);
 int drawScore(std::vector<int> const& score, std::vector<unsigned char> const& HUDcolor);
+
 int M_settings();
 
 
@@ -122,11 +126,12 @@ int main(){
 	initDATAS();	//Fills the DATAS table with default pattern
 	piUnlock(DATAS_KEY);
 
-
+/*
 	int x = piThreadCreate(deamonLED);	//Starts the display
 	if (x!=0){
 		std::cout<<"Thread didnt start"<<std::endl;
 	}
+*/	
 
 //	for(;;){}	//Infinite loop
 
@@ -151,9 +156,9 @@ int main(){
 		std::cout<<"4 - Settings"<<std::endl;
 		std::cout<<"5 - EXIT"<<std::endl;
 		std::cout<<"> ";
-		//std::cin>>choice;	choice = (unsigned int)choice;
-		choice=3;
-
+		std::cin>>choice;	choice = (unsigned int)choice;
+		//choice=2;
+		
 
 		switch (choice) {
 			case 1:
@@ -234,6 +239,30 @@ int sendLine(unsigned char const& color, unsigned char const& row, unsigned char
 
 
 
+int sendSpectrumBand(std::vector<unsigned char> const& data, unsigned char const& cellColumn){
+	/* Send a portion of audio spectrum through I2C to the STM32
+	   [ IS_SPECTRUM_DATA , *empty_byte* , CELL_COLUMN , 0-255 , 0-255 , 0-255 , 0-255 , 0-255 , 0-255 , 0-255 , 0-255]
+	*/
+	ssize_t length = 11;
+	unsigned char buffer[11] = {0};
+
+	buffer[0] = 7;	buffer[1] = 0;	buffer[2] = cellColumn;	// Must be between |[ 0 ; SIZE_X ]|
+	for(unsigned int i(0); i < 8; i++){
+		buffer[3+i] = data[i];
+		//std::cout<<(int)data[i]<<std::endl;
+	}
+
+	if (write(file_i2c, buffer, length) != length){
+		/* ERROR HANDLING: i2c transaction failed */
+		std::cout<<"Failed to write to the i2c bus.\n"<<std::endl;
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
+}
+
+
+
 int drawScreen() {
 	/* Send red, green and blue lines through I2C to the STM32 */
 
@@ -284,6 +313,43 @@ void initDATAS(){
 
 
 
+std::vector<unsigned char> HSVtoRGB(std::vector<float> const& HSV){
+	float H = HSV[0];	float S = HSV[1];	float V = HSV[2];
+    if(H>360 || H<0 || S>100 || S<0 || V>100 || V<0){
+        std::cout<<"The givem HSV values are not in valid range"<<std::endl;
+        return std::vector<unsigned char> {};
+    }
+    float s = S/100;
+    float v = V/100;
+    float C = s*v;
+    float X = C*( 1-abs(fmod(H/60.0, 2)-1) );
+    float m = v-C;
+    float r, g, b;
+
+    if(H >= 0 && H < 60){			r = C, g = X, b = 0;
+    }else if(H >= 60 && H < 120){	r = X, g = C, b = 0;
+    }else if(H >= 120 && H < 180){	r = 0, g = C, b = X;
+    }else if(H >= 180 && H < 240){	r = 0, g = X, b = C;
+    }else if(H >= 240 && H < 300){	r = X, g = 0, b = C;
+    }else{							r = C, g = 0, b = X;
+    }
+
+    unsigned char R = (r+m)*255;
+    unsigned char G = (g+m)*255;
+    unsigned char B = (b+m)*255;
+
+	return std::vector<unsigned char> {R,G,B};
+}
+
+
+
+float map(float const& value, float const& a1, float const& a2, float const& b1, float const& b2){
+	float start_ratio = (value - a1)/(a2 - a1);
+	return (start_ratio * (b2-b1) + b1);
+}
+
+
+
 int M_displayPatterns() {
 	/* NOT DONE YET */
 	return EXIT_SUCCESS;
@@ -292,46 +358,56 @@ int M_displayPatterns() {
 
 
 int M_spectrum() {
-	/* NOT DONE YET */
-	/*
-	sf::RenderWindow window(sf::VideoMode(900,900,32),"Window");
 
-	std::string path;
-	int bufferSize (0);
-	std::cout<<"Put an audio file in the Ressources folder (.wav will work, mp3 wont)"<<std::endl;
-	std::cout<<"Enter the file name (example.wav) : ";
-	//std::cin>>path;
-	path="test.flac";
-	std::cout<<"Enter the buffer size treated by the fft (powers of two works best like 16384)"<<std::endl;
-	//std::cin>>bufferSize;
-	bufferSize=8192;
+	sf::UdpSocket socket;
+	socket.setBlocking(false);
 
-	FFT fft("Ressources/"+path,bufferSize);
-
-	int dTime(0);	//Used to regulate the framerate (FPS constant)
-	int prevTime = millis();
-
-	bool isDone (false);
-
-	while(window.isOpen() && !isDone ){
-
-		while(dTime <= (int)(1000/FPS)){
-			delay((int)(100/FPS));
-			dTime = millis()-prevTime;
-		}
-
-		//std::cout<<dTime<<std::endl;
-		isDone = fft.update() ;
-
-		window.clear() ;
-		fft.draw(window) ;
-		window.display() ;
-
-		dTime=0;
-		prevTime=millis();
+	if (socket.bind(54000) != sf::Socket::Done) {
+		std::cout<<"***** Can't open UDP socket on port 54000"<<std::endl;
+		return EXIT_FAILURE;
 	}
 
-*/
+	char data[24];
+	std::size_t received;
+	std::vector<float> HSV {0,0,0};
+
+	sf::IpAddress sender("127.0.0.1");
+	unsigned short sender_port (36000);
+
+	initscr();
+	clear();
+	noecho();
+	keypad(stdscr, TRUE);
+	nodelay(stdscr, TRUE);
+	cbreak();
+
+
+	printw("Receiving...\n");
+	printw("[q]:exit\n");
+	refresh();
+
+	bool keepReceiving (true);
+	int c (0);
+	std::vector<unsigned char> RGB (3);
+	std::vector<unsigned char> datas_per_cell (8);
+	while(keepReceiving){
+		c = getch();
+		if(c==113) keepReceiving = false; // key q pressed : quit
+
+
+		if (socket.receive(data, 24, received, sender, sender_port) == sf::Socket::Done) {
+			//piLock(DATAS_KEY);
+			
+			for (unsigned char cell (0); cell < SIZE_X; cell++){
+				for (unsigned char i(0); i<8; i++){
+					datas_per_cell[i] = data[cell*8+i];
+				}
+				sendSpectrumBand(datas_per_cell, cell);
+			}
+		}
+
+	}
+	endwin();
 	return EXIT_SUCCESS;
 }
 
@@ -378,23 +454,23 @@ int M_pong() {
 	std::cout<<" * Choose foreground color\n"<<std::endl;
 	std::cout<<"RED : 0-255 > ";
 	unsigned char redValue  (255);
-	std::cin>>temp;	redValue = (unsigned char)temp;
+	//std::cin>>temp;	redValue = (unsigned char)temp;
 	std::cout<<"GREEN : 0-255 > ";
 	unsigned char greenValue (255);
-	std::cin>>temp;	greenValue = (unsigned char)temp;
+	//std::cin>>temp;	greenValue = (unsigned char)temp;
 	std::cout<<"BLUE : 0-255 > ";
 	unsigned char blueValue (255);
-	std::cin>>temp;	blueValue = (unsigned char)temp;
+	//std::cin>>temp;	blueValue = (unsigned char)temp;
 	std::vector<unsigned char> fgColor {redValue, greenValue, blueValue};
 
 	std::cout<<" * Choose HUD color\n"<<std::endl;
 	std::cout<<"RED : 0-255 > ";
-	std::cin>>temp;	redValue = (unsigned char)temp;
+	//std::cin>>temp;	redValue = (unsigned char)temp;
 	std::cout<<"GREEN : 0-255 > ";
-	std::cin>>temp;	greenValue = (unsigned char)temp;
+	//std::cin>>temp;	greenValue = (unsigned char)temp;
 	std::cout<<"BLUE : 0-255 > ";
-	std::cin>>temp;	blueValue = (unsigned char)temp;
-	std::vector<unsigned char> HUDcolor {255, 255, 0};
+	//std::cin>>temp;	blueValue = (unsigned char)temp;
+	std::vector<unsigned char> HUDcolor {redValue, greenValue, blueValue};
 
 	play_pong(screenMode, fgColor, HUDcolor);	//screenMode : =0 (4*4 cells), =1 (3*2 cells)
 	return EXIT_SUCCESS;
@@ -594,7 +670,7 @@ int pongInitBall(std::vector<double> & ballPosAngle, int const& screenMode){
 
 
 int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& playerPos, int const& screenMode, int const& dTime){
-	double SPEED (15.0);	//Arbitrary fixed speed value of 10 pixels per second. Because I can.
+	double SPEED (60.0);	//Arbitrary fixed speed value of 10 pixels per second. Because I can.
 
 	double futureX = SPEED*((double)(dTime)/1000) * cos(ballPosAngle[2]) + ballPosAngle[0];
 	double futureY = SPEED*((double)(dTime)/1000) * sin(ballPosAngle[2]) + ballPosAngle[1];
@@ -715,7 +791,7 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 				int const& screenMode, std::vector<unsigned char> const& fgColor, std::vector<unsigned char> const& HUDcolor){
 	std::vector<unsigned char> BLACK {0,0,0};
 
-	piLock(DATAS_KEY);
+	//piLock(DATAS_KEY);
 
 	for (unsigned int line (0); line<DATAS.size(); line++){	//Reset blank screen
 		for (unsigned int pixel (0); pixel<DATAS[0].size(); pixel++){
@@ -766,8 +842,8 @@ int pongDisplay(std::vector<double> const& ballPosAngle, std::vector<int> const&
 		default:
 			break;
 	}
-	piUnlock(DATAS_KEY);
-	//drawScreen();
+	//piUnlock(DATAS_KEY);
+	drawScreen();
 	return EXIT_SUCCESS;
 }
 
