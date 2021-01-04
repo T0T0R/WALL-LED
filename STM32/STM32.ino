@@ -34,6 +34,9 @@ byte RED_VALUES [nbOfPWMcycles];
 byte GREEN_VALUES [nbOfPWMcycles];
 byte BLUE_VALUES [nbOfPWMcycles];
 
+bool displaySpectrum;
+byte SPECTRUM [SIZE_X*8];
+
 
 
 
@@ -42,6 +45,8 @@ void setup() {
   pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
   pinMode(LATCH_PIN, OUTPUT);
+
+  displaySpectrum = false;
 
   pinMode(PB5, OUTPUT);
   digitalWrite(PB5,HIGH);
@@ -98,6 +103,7 @@ void receiveEvent(int howMany)
   
   switch(color){
     case 0: //RED
+      displaySpectrum = false;
       while(0<Wire.available()){
         RED_matrix[row][column] = Wire.read();
         column++;
@@ -105,6 +111,7 @@ void receiveEvent(int howMany)
     break;
     
     case 1: //GREEN
+      displaySpectrum = false;
       while(0<Wire.available()){
         GREEN_matrix[row][column] = Wire.read();
         column++;
@@ -112,6 +119,7 @@ void receiveEvent(int howMany)
     break;
     
     case 2: //BLUE
+      displaySpectrum = false;
       while(0<Wire.available()){
         BLUE_matrix[row][column] = Wire.read();
         column++;
@@ -119,23 +127,35 @@ void receiveEvent(int howMany)
     break;
 
     case 3: //Levels of red
+      displaySpectrum = false;
       while(0<Wire.available()){
         RED_VALUES[column] = Wire.read();
         column++;
       }
     break;
     case 4: //Levels of green
+      displaySpectrum = false;
       while(0<Wire.available()){
         GREEN_VALUES[column] = Wire.read();
         column++;
       }
     break;
     case 5: //Levels of blue
-    while(0<Wire.available()){
-        BLUE_VALUES[column] = Wire.read();
+      displaySpectrum = false;
+      while(0<Wire.available()){
+          BLUE_VALUES[column] = Wire.read();
+          column++;
+        }
+    break;
+    
+    case 7: //Spectrum datas
+      displaySpectrum = true;
+      while(0<Wire.available()){
+        SPECTRUM[column] = Wire.read();
         column++;
       }
     break;
+    
     default:
     break;
   }
@@ -439,6 +459,30 @@ void initDATAS(){
 
 
 void loop() {
+  int r (0);
+  int g (0);
+  
+  if (displaySpectrum){
+    for (byte column (0); column < SIZE_X*8; column++){ // For each band
+      
+      for (byte i (0); i < SIZE_Y*8; i++){  // ...draw a vertical line (from the bottom)...
+        r = (byte)(i*255.0/(SIZE_Y*8-1));     // ...with its hue going from green to red.
+        g = 255-r;
+        if (i >= map(SPECTRUM[column],0,127,0,SIZE_Y*8+1)){
+          r = 0; g = 0;         // complete the top of the line with black pixels.
+        }
+        
+        RED_matrix[SIZE_Y*8-1-i][column] = r;
+        GREEN_matrix[SIZE_Y*8-1-i][column] = g;
+        BLUE_matrix[SIZE_Y*8-1-i][column] = 0;
+      }
+    }
+  }else{  // Reseting spectrum datas
+    for (byte i (0); i < SIZE_X*8; i++){
+      SPECTRUM[i]=0;
+    }
+  }
+  
   drawScreen();
   debug(false);
 }
