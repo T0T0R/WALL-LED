@@ -713,10 +713,10 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 		}
 
 
-
+	
 		
 	}else{//	If it didn't hit the left paddle, maybe the right one ?
-		if(futurePosX >= 30 and ballPosAngle[0]<=30 and screenMode==0){	//4*4 cells, paddles are 6px wide:
+		if(futurePosX >= 30 and ballPosAngle[0] <30 and screenMode==0){	//4*4 cells, paddles are 6px wide:
 			for (int y(0); y<6; y++){
 				if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
 					ballPosAngle[0] = 30-(futureX-futurePosX);
@@ -727,10 +727,10 @@ int pongMoveBall(std::vector<double> & ballPosAngle, std::vector<int> const& pla
 				}
 			}
 
-		}else if(futurePosX >= 22 and ballPosAngle[0]<=22 and screenMode==1){	//3*2 cells, paddles are 4px wide:
+		}else if(futurePosX >= 22 and ballPosAngle[0] <22 and screenMode==1){	//3*2 cells, paddles are 4px wide:
 			for (int y(0); y<4; y++){
 				if (y+playerPos[0] == futurePosY){	//If a pixel of the paddle meet the ball : collision and bounce
-					ballPosAngle[0] = 30-(futureX-futurePosX);
+					ballPosAngle[0] = 22-(futureX-futurePosX);
 					ballPosAngle[2] = PI - ballPosAngle[2];
 					std::cout<<"bounce right"<<std::endl;
 					hitPaddle = true;
@@ -835,7 +835,7 @@ bool calcScore(std::vector<double> const& ballPosAngle, std::vector<int> & score
 				newPoint = true;
 			}
 		break;
-		case 1:	//3*4 cells
+		case 1:	//3*2 cells
 			if (ballPosAngle[0]>22 && score[0]<10){
 				score[0]=score[0]+1;
 				newPoint = true;
